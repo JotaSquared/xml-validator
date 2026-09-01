@@ -1,0 +1,8 @@
+{
+  "name": "XML Invoice Validator Coupa",
+  "description": "Herramienta portable de diagnóstico y análisis de facturas XML para integraciones Coupa",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

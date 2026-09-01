@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>XML Invoice Validator Coupa</title>
+  <meta name="description" content="Herramienta portable de diagnóstico y análisis de facturas XML para integraciones Coupa" />
+  <meta property="og:title" content="XML Invoice Validator Coupa" />
+  <meta property="og:description" content="Herramienta portable de diagnóstico y análisis de facturas XML para integraciones Coupa" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Header -->
+    <header class="app-header" id="app_header">
+      <div class="brand-section">
+        <div class="brand-icon">&lt;/&gt;</div>
+        <div class="brand-titles">
+          <h1 class="app-title">XML Invoice Validator</h1>
+          <span class="app-subtitle">Local XML diagnostic tool</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Privacy & Local Processing Badge -->
+        <div class="privacy-badge" id="privacy_badge" tabindex="0" role="status">
+          <span class="pulse-dot"></span>
+          <span>LOCAL ONLY</span>
+          <div class="privacy-tooltip">
+            XML files are processed locally in your browser and are not uploaded.
+          </div>
+        </div>
+
+        <!-- Light / Dark Mode Toggle -->
+        <button id="theme_toggle_btn" class="btn-theme-toggle" type="button" aria-label="Toggle visual theme">
+          <span>🌙</span>
+          <span>Dark</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Notification Banner -->
+    <div id="app_notification_banner" class="notification-banner">
+      <span id="notification_text"></span>
+    </div>
+
+    <!-- Main 50/50 Workspace -->
+    <main class="workspace-container" id="main_workspace">
+      <!-- Left Panel: XML Source -->
+      <section class="panel panel-left" id="panel_xml_source" aria-label="XML Source Editor Panel">
+        <div class="panel-header">
+          <div class="file-info-group">
+            <span class="panel-title">XML Source:</span>
+            <span id="file_name_display" class="file-name-badge" title="Untitled">Untitled</span>
+          </div>
+
+          <!-- Hidden File Input for Native FileReader -->
+          <input type="file" id="file_input" accept=".xml,text/xml,application/xml" style="display: none;" />
+          <input type="file" id="reference_file_input" accept=".xml,text/xml,application/xml" style="display: none;" />
+
+          <div class="toolbar-actions">
+            <button id="btn_load_xml" class="btn btn-secondary" type="button" title="Load XML file from your computer">
+              Load XML
+            </button>
+            <button id="btn_validate" class="btn btn-primary" type="button" title="Run diagnostic validation">
+              Validate
+            </button>
+            <button id="btn_format" class="btn btn-secondary" type="button" title="Format and indent XML content">
+              Format
+            </button>
+            <button id="btn_clear" class="btn btn-danger-outline" type="button" title="Clear editor content">
+              Clear
+            </button>
+          </div>
+        </div>
+
+        <!-- Line Numbers & Textarea Area -->
+        <div class="editor-wrapper">
+          <pre id="line_numbers_gutter" class="line-numbers" aria-hidden="true">1</pre>
+          <textarea
+            id="xml_editor_textarea"
+            class="xml-textarea"
+            placeholder="Paste raw XML invoice here or click 'Load XML'..."
+            spellcheck="false"
+            wrap="off"
+            aria-label="XML Source Code Editor"
+          ></textarea>
+        </div>
+
+        <div class="panel-footer">
+          <div class="editor-metrics">
+            <span>Lines: <strong id="editor_line_count">1</strong></span>
+            <span>Characters: <strong id="editor_char_count">0</strong></span>
+          </div>
+          <div>
+            <span>Encoding: UTF-8</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Panel: Analysis & Diagnostics -->
+      <section class="panel panel-right" id="panel_xml_analysis" aria-label="Analysis and Inspection Panel">
+        <!-- Summary Bar -->
+        <div class="summary-bar" id="summary_bar">
+          <div class="status-indicator-group">
+            <span class="status-label">STATUS:</span>
+            <span id="global_status_pill" class="status-pill status-not-analyzed">NOT ANALYZED</span>
+          </div>
+
+          <div class="summary-counters">
+            <div class="counter-item errors">
+              <span class="counter-name">Errors:</span>
+              <span id="summary_errors_count" class="counter-value">—</span>
+            </div>
+            <div class="counter-item warnings">
+              <span class="counter-name">Warnings:</span>
+              <span id="summary_warnings_count" class="counter-value">—</span>
+            </div>
+            <div class="counter-item info">
+              <span class="counter-name">Info:</span>
+              <span id="summary_info_count" class="counter-value">—</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tabs Navigation -->
+        <nav class="tabs-navigation" id="tabs_navigation" role="tablist">
+          <button class="tab-button active" data-tab="validation" role="tab" aria-selected="true" id="tab_btn_validation">
+            Validation Results
+          </button>
+          <button class="tab-button" data-tab="tree" role="tab" aria-selected="false" id="tab_btn_tree">
+            XML Tree
+          </button>
+          <button class="tab-button" data-tab="details" role="tab" aria-selected="false" id="tab_btn_details">
+            XML Details
+          </button>
+          <button class="tab-button" data-tab="comparison" role="tab" aria-selected="false" id="tab_btn_comparison">
+            Comparison
+          </button>
+        </nav>
+
+        <!-- Tab Panes Container -->
+        <div class="tab-content-container">
+          <!-- Pane 1: Validation Results -->
+          <div id="tab_pane_validation" class="tab-pane active" role="tabpanel" aria-labelledby="tab_btn_validation">
+            <div class="empty-state">
+              <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <div class="empty-state-title">No Diagnostics to Display</div>
+              <p class="empty-state-text">Run a validation to see diagnostic results.</p>
+            </div>
+          </div>
+
+          <!-- Pane 2: XML Tree -->
+          <div id="tab_pane_tree" class="tab-pane" role="tabpanel" aria-labelledby="tab_btn_tree">
+            <div class="empty-state">
+              <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16m-7 6h7" />
+              </svg>
+              <div class="empty-state-title">XML Tree Viewer</div>
+              <p class="empty-state-text">The XML structure will appear here after analysis.</p>
+            </div>
+          </div>
+
+          <!-- Pane 3: XML Details -->
+          <div id="tab_pane_details" class="tab-pane" role="tabpanel" aria-labelledby="tab_btn_details">
+            <div class="empty-state">
+              <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div class="empty-state-title">Element Inspector</div>
+              <p class="empty-state-text">Select an XML element to inspect its details.</p>
+            </div>
+          </div>
+
+          <!-- Pane 4: Comparison -->
+          <div id="tab_pane_comparison" class="tab-pane" role="tabpanel" aria-labelledby="tab_btn_comparison">
+            <div class="empty-state">
+              <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              <div class="empty-state-title">Template Comparator</div>
+              <p class="empty-state-text">Template comparison will be available in a later phase.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Portable JavaScript Modules (Strict Sequential Load Order) -->
+  <script src="js/utils.js"></script>
+  <script src="js/templateCatalog.js"></script>
+  <script src="data/templates.js"></script>
+  <script src="js/xmlParser.js"></script>
+  <script src="js/xmlFormatter.js"></script>
+  <script src="js/xmlAnalyzer.js"></script>
+  <script src="js/ruleEngine.js"></script>
+  <script src="js/validationRules.js"></script>
+  <script src="js/templateComparator.js"></script>
+  <script src="js/treeRenderer.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
