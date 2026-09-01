@@ -23,3 +23,18 @@ Successful aggregate output is:
 
 Every individual assertion is also displayed and written to the browser
 console. No production XML or application source is changed by the suite.
+
+## Phase 8A.1B-1 RuleEngine contract tests
+
+Open `phase-8a-1b1-contract.html` directly in Chrome or Edge. This focused
+suite verifies that malformed rule findings still receive the complete
+normalized `correction` schema and that rule registration contracts reject
+`source.type` values outside the RuleEngine's existing allowlist.
+
+## Phase 8A.1B-2 XML scope and hierarchy tests
+
+Open `phase-8a-1b2-scope.html` directly in Chrome or Edge. This focused suite
+verifies that Credential rules inspect only direct Header partner Credentials,
+that invoice-header and order rules resolve the structural
+`/cXML/Request/InvoiceDetailRequest`, and that multiple direct invoice orders
+continue to be validated individually.

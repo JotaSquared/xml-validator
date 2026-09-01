@@ -185,6 +185,30 @@ window.XMLValidator = window.XMLValidator || {};
     return result;
   }
 
+  /**
+   * Resolve the structural cXML Header without considering same-named elements elsewhere
+   * @param {Document} doc
+   * @returns {Element|null}
+   */
+  function getStructuralHeader(doc) {
+    if (!doc || !doc.documentElement || doc.documentElement.nodeName !== 'cXML') return null;
+    var headers = getDirectElementChildren(doc.documentElement, 'Header');
+    return headers.length > 0 ? headers[0] : null;
+  }
+
+  /**
+   * Resolve /cXML/Request/InvoiceDetailRequest using direct-child relationships
+   * @param {Document} doc
+   * @returns {Element|null}
+   */
+  function getStructuralInvoiceDetailRequest(doc) {
+    if (!doc || !doc.documentElement || doc.documentElement.nodeName !== 'cXML') return null;
+    var requests = getDirectElementChildren(doc.documentElement, 'Request');
+    if (requests.length === 0) return null;
+    var invoiceRequests = getDirectElementChildren(requests[0], 'InvoiceDetailRequest');
+    return invoiceRequests.length > 0 ? invoiceRequests[0] : null;
+  }
+
   // =========================================================================
   // PRODUCTION VALIDATION RULES (FASE 8A)
   // =========================================================================
@@ -428,10 +452,13 @@ window.XMLValidator = window.XMLValidator || {};
         var doc = context.xmlDocument;
         var findings = [];
         var partners = ['From', 'To', 'Sender'];
+        var header = getStructuralHeader(doc);
+
+        if (!header) return findings;
 
         for (var p = 0; p < partners.length; p++) {
           var pName = partners[p];
-          var pEls = doc.getElementsByTagName(pName);
+          var pEls = getDirectElementChildren(header, pName);
           for (var i = 0; i < pEls.length; i++) {
             var creds = getDirectElementChildren(pEls[i], 'Credential');
             for (var c = 0; c < creds.length; c++) {
@@ -486,10 +513,13 @@ window.XMLValidator = window.XMLValidator || {};
         var doc = context.xmlDocument;
         var findings = [];
         var partners = ['From', 'To', 'Sender'];
+        var header = getStructuralHeader(doc);
+
+        if (!header) return findings;
 
         for (var p = 0; p < partners.length; p++) {
           var pName = partners[p];
-          var pEls = doc.getElementsByTagName(pName);
+          var pEls = getDirectElementChildren(header, pName);
           for (var i = 0; i < pEls.length; i++) {
             var creds = getDirectElementChildren(pEls[i], 'Credential');
             for (var c = 0; c < creds.length; c++) {
@@ -622,14 +652,12 @@ window.XMLValidator = window.XMLValidator || {};
         url: 'http://xml.cxml.org'
       },
       appliesTo: function (context) {
-        return context.xmlDocument && context.xmlDocument.getElementsByTagName('InvoiceDetailRequest').length > 0;
+        return getStructuralInvoiceDetailRequest(context.xmlDocument) !== null;
       },
       validate: function (context) {
         var doc = context.xmlDocument;
-        var invReqs = doc.getElementsByTagName('InvoiceDetailRequest');
-        if (invReqs.length === 0) return [];
-
-        var invReq = invReqs[0];
+        var invReq = getStructuralInvoiceDetailRequest(doc);
+        if (!invReq) return [];
         var headers = getDirectElementChildren(invReq, 'InvoiceDetailRequestHeader');
 
         if (headers.length === 0) {
@@ -670,11 +698,13 @@ window.XMLValidator = window.XMLValidator || {};
         url: 'http://xml.cxml.org'
       },
       appliesTo: function (context) {
-        return context.xmlDocument && context.xmlDocument.getElementsByTagName('InvoiceDetailRequestHeader').length > 0;
+        return getStructuralInvoiceDetailRequest(context.xmlDocument) !== null;
       },
       validate: function (context) {
         var doc = context.xmlDocument;
-        var headers = doc.getElementsByTagName('InvoiceDetailRequestHeader');
+        var invReq = getStructuralInvoiceDetailRequest(doc);
+        if (!invReq) return [];
+        var headers = getDirectElementChildren(invReq, 'InvoiceDetailRequestHeader');
         if (headers.length === 0) return [];
 
         var header = headers[0];
@@ -718,11 +748,13 @@ window.XMLValidator = window.XMLValidator || {};
         url: 'http://xml.cxml.org'
       },
       appliesTo: function (context) {
-        return context.xmlDocument && context.xmlDocument.getElementsByTagName('InvoiceDetailRequestHeader').length > 0;
+        return getStructuralInvoiceDetailRequest(context.xmlDocument) !== null;
       },
       validate: function (context) {
         var doc = context.xmlDocument;
-        var headers = doc.getElementsByTagName('InvoiceDetailRequestHeader');
+        var invReq = getStructuralInvoiceDetailRequest(doc);
+        if (!invReq) return [];
+        var headers = getDirectElementChildren(invReq, 'InvoiceDetailRequestHeader');
         if (headers.length === 0) return [];
 
         var header = headers[0];
@@ -766,14 +798,12 @@ window.XMLValidator = window.XMLValidator || {};
         url: 'https://docs.coupa.com'
       },
       appliesTo: function (context) {
-        return context.xmlDocument && context.xmlDocument.getElementsByTagName('InvoiceDetailRequest').length > 0;
+        return getStructuralInvoiceDetailRequest(context.xmlDocument) !== null;
       },
       validate: function (context) {
         var doc = context.xmlDocument;
-        var invReqs = doc.getElementsByTagName('InvoiceDetailRequest');
-        if (invReqs.length === 0) return [];
-
-        var invReq = invReqs[0];
+        var invReq = getStructuralInvoiceDetailRequest(doc);
+        if (!invReq) return [];
         var orders = getDirectElementChildren(invReq, 'InvoiceDetailOrder');
 
         if (orders.length === 0) {
