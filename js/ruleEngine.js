@@ -71,8 +71,8 @@ XMLValidator.RuleEngine = (function () {
       if (!rule.source.title || typeof rule.source.title !== 'string' || rule.source.title.trim() === '') {
         errors.push('Rule source must specify a non-empty string "title".');
       }
-      if (!rule.source.type || typeof rule.source.type !== 'string') {
-        errors.push('Rule source must specify a valid "type".');
+      if (!rule.source.type || typeof rule.source.type !== 'string' || ALLOWED_SOURCE_TYPES.indexOf(rule.source.type) === -1) {
+        errors.push('Rule source.type must be one of: ' + ALLOWED_SOURCE_TYPES.join(', ') + '.');
       }
     }
 
@@ -284,6 +284,12 @@ XMLValidator.RuleEngine = (function () {
         column: null,
         snippet: null,
         suggestion: null,
+        correction: {
+          expected: null,
+          actual: null,
+          suggestion: null,
+          autoFixable: false
+        },
         source: rule.source
       };
     }

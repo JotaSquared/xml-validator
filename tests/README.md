@@ -38,3 +38,11 @@ verifies that Credential rules inspect only direct Header partner Credentials,
 that invoice-header and order rules resolve the structural
 `/cXML/Request/InvoiceDetailRequest`, and that multiple direct invoice orders
 continue to be validated individually.
+
+## Phase 8A.1B-3 structural observation tests
+
+Open `phase-8a-1b3-observations.html` directly in Chrome or Edge. This focused
+suite verifies structurally scoped Sender SharedSecret detection, neutral
+handling of an undeclared purpose, explicit PO/Contract/Mixed/None backing
+states, preservation of multiple and empty associated payloadIDs, exclusion of
+unrelated references, and descriptive UI wording.

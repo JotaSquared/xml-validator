@@ -254,22 +254,37 @@ XMLValidator.UI = (function () {
       // Structural Observations (Non-error facts)
       var observationsHtml = '';
       if (structuralObservations) {
-        var backingDesc = 'Unbacked / No PO';
-        if (structuralObservations.orderReferencePresent) {
-          backingDesc = 'PO-backed (' + (structuralObservations.orderReferencePayloadID || 'OrderReference') + ')';
-        } else if (structuralObservations.masterAgreementReferencePresent) {
-          backingDesc = 'Contract-backed (' + (structuralObservations.masterAgreementPayloadID || 'MasterAgreementReference') + ')';
+        function describePayloadIDs(values) {
+          if (!Array.isArray(values) || values.length === 0) return 'no payloadID observed';
+          return values.map(function (value) {
+            return value && value.trim() !== '' ? value : '(empty payloadID)';
+          }).join(', ');
         }
+
+        var poPayloads = describePayloadIDs(structuralObservations.orderReferencePayloadIDs);
+        var contractPayloads = describePayloadIDs(structuralObservations.masterAgreementPayloadIDs);
+        var backingDesc = 'Neither PO nor Contract backing observed';
+        if (structuralObservations.backingType === 'MIXED') {
+          backingDesc = 'Both PO and Contract backing observed — PO: ' + poPayloads + '; Contract: ' + contractPayloads;
+        } else if (structuralObservations.backingType === 'PO') {
+          backingDesc = 'PO backing observed — ' + poPayloads;
+        } else if (structuralObservations.backingType === 'CONTRACT') {
+          backingDesc = 'Contract / Master Agreement backing observed — ' + contractPayloads;
+        }
+
+        var purposeDesc = structuralObservations.purpose && structuralObservations.purpose.trim() !== ''
+          ? structuralObservations.purpose
+          : 'Not declared / not observed';
 
         observationsHtml = [
           '<div style="margin-top: 12px;">',
           '  <span class="version-badge-label">Structural Observations (Non-Error Profile)</span>',
           '  <div class="obs-grid">',
-          '    <div class="obs-badge-item"><span class="obs-badge-label">Document Purpose</span><span class="obs-badge-val">' + escapeHtml(structuralObservations.purpose || 'standard') + '</span></div>',
+          '    <div class="obs-badge-item"><span class="obs-badge-label">Document Purpose</span><span class="obs-badge-val">' + escapeHtml(purposeDesc) + '</span></div>',
           '    <div class="obs-badge-item"><span class="obs-badge-label">Backing Observed</span><span class="obs-badge-val">' + escapeHtml(backingDesc) + '</span></div>',
           '    <div class="obs-badge-item"><span class="obs-badge-label">Invoice Lines</span><span class="obs-badge-val">' + structuralObservations.invoiceDetailItemCount + ' standard / ' + structuralObservations.invoiceDetailServiceItemCount + ' service</span></div>',
           '    <div class="obs-badge-item"><span class="obs-badge-label">Tax Observed</span><span class="obs-badge-val">' + (structuralObservations.taxAtLine ? 'Line Tax' : '') + (structuralObservations.taxAtLine && structuralObservations.taxAtSummary ? ' + ' : '') + (structuralObservations.taxAtSummary ? 'Summary Tax' : '') + (!structuralObservations.taxAtLine && !structuralObservations.taxAtSummary ? 'None' : '') + '</span></div>',
-          '    <div class="obs-badge-item"><span class="obs-badge-label">Shared Secret</span><span class="obs-badge-val">' + (structuralObservations.sharedSecretPresent ? 'Observed in Sender' : 'Not provided') + '</span></div>',
+          '    <div class="obs-badge-item"><span class="obs-badge-label">Shared Secret</span><span class="obs-badge-val">' + (structuralObservations.sharedSecretPresent ? 'Observed in Sender' : 'Not observed in Sender') + '</span></div>',
           '  </div>',
           '</div>'
         ].join('\n');

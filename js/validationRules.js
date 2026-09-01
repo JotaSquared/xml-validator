@@ -71,8 +71,11 @@ window.XMLValidator = window.XMLValidator || {};
     var obs = {
       orderReferencePresent: false,
       orderReferencePayloadID: null,
+      orderReferencePayloadIDs: [],
       masterAgreementReferencePresent: false,
       masterAgreementPayloadID: null,
+      masterAgreementPayloadIDs: [],
+      backingType: 'NONE',
       emptyDocumentReferencePayloadID: false,
       invoiceDetailItemCount: 0,
       invoiceDetailServiceItemCount: 0,
@@ -84,39 +87,50 @@ window.XMLValidator = window.XMLValidator || {};
 
     if (!doc || !doc.documentElement) return obs;
 
-    // 1. purpose
-    var reqHeaders = doc.getElementsByTagName('InvoiceDetailRequestHeader');
-    if (reqHeaders && reqHeaders.length > 0) {
-      obs.purpose = reqHeaders[0].getAttribute('purpose') || null;
+    var invoiceRequest = getStructuralInvoiceDetailRequest(doc);
+
+    // 1. Purpose declared on the structural InvoiceDetailRequestHeader
+    if (invoiceRequest) {
+      var reqHeaders = getDirectElementChildren(invoiceRequest, 'InvoiceDetailRequestHeader');
+      if (reqHeaders.length > 0) {
+        var purposeValue = reqHeaders[0].getAttribute('purpose');
+        obs.purpose = purposeValue && purposeValue.trim() !== '' ? purposeValue : null;
+      }
     }
 
-    // 2. OrderReference
-    var orderRefs = doc.getElementsByTagName('OrderReference');
-    if (orderRefs && orderRefs.length > 0) {
-      obs.orderReferencePresent = true;
-      var docRefs = orderRefs[0].getElementsByTagName('DocumentReference');
-      if (docRefs && docRefs.length > 0) {
-        var pId = docRefs[0].getAttribute('payloadID');
-        obs.orderReferencePayloadID = pId || '';
-        if (!pId || pId.trim() === '') {
-          obs.emptyDocumentReferencePayloadID = true;
+    // 2. Backing references belonging to direct invoice orders
+    if (invoiceRequest) {
+      var invoiceOrders = getDirectElementChildren(invoiceRequest, 'InvoiceDetailOrder');
+      for (var orderIndex = 0; orderIndex < invoiceOrders.length; orderIndex++) {
+        var orderInfos = getDirectElementChildren(invoiceOrders[orderIndex], 'InvoiceDetailOrderInfo');
+        for (var infoIndex = 0; infoIndex < orderInfos.length; infoIndex++) {
+          var orderRefs = getDirectElementChildren(orderInfos[infoIndex], 'OrderReference');
+          var agreementRefs = getDirectElementChildren(orderInfos[infoIndex], 'MasterAgreementReference');
+
+          if (orderRefs.length > 0) obs.orderReferencePresent = true;
+          if (agreementRefs.length > 0) obs.masterAgreementReferencePresent = true;
+
+          for (var orderRefIndex = 0; orderRefIndex < orderRefs.length; orderRefIndex++) {
+            collectReferencePayloadIDs(orderRefs[orderRefIndex], obs.orderReferencePayloadIDs, obs);
+          }
+          for (var agreementRefIndex = 0; agreementRefIndex < agreementRefs.length; agreementRefIndex++) {
+            collectReferencePayloadIDs(agreementRefs[agreementRefIndex], obs.masterAgreementPayloadIDs, obs);
+          }
         }
       }
     }
 
-    // 3. MasterAgreementReference
-    var maRefs = doc.getElementsByTagName('MasterAgreementReference');
-    if (maRefs && maRefs.length > 0) {
-      obs.masterAgreementReferencePresent = true;
-      var mDocRefs = maRefs[0].getElementsByTagName('DocumentReference');
-      if (mDocRefs && mDocRefs.length > 0) {
-        var mPId = mDocRefs[0].getAttribute('payloadID');
-        obs.masterAgreementPayloadID = mPId || '';
-        if (!mPId || mPId.trim() === '') {
-          obs.emptyDocumentReferencePayloadID = true;
-        }
-      }
+    if (obs.orderReferencePresent && obs.masterAgreementReferencePresent) {
+      obs.backingType = 'MIXED';
+    } else if (obs.orderReferencePresent) {
+      obs.backingType = 'PO';
+    } else if (obs.masterAgreementReferencePresent) {
+      obs.backingType = 'CONTRACT';
     }
+
+    // Preserve singular compatibility fields only when the association is unique.
+    obs.orderReferencePayloadID = obs.orderReferencePayloadIDs.length === 1 ? obs.orderReferencePayloadIDs[0] : null;
+    obs.masterAgreementPayloadID = obs.masterAgreementPayloadIDs.length === 1 ? obs.masterAgreementPayloadIDs[0] : null;
 
     // 4. Line counts
     var items = doc.getElementsByTagName('InvoiceDetailItem');
@@ -150,14 +164,21 @@ window.XMLValidator = window.XMLValidator || {};
       }
     }
 
-    // 6. SharedSecret
-    var secrets = doc.getElementsByTagName('SharedSecret');
-    if (secrets && secrets.length > 0) {
-      for (var sec = 0; sec < secrets.length; sec++) {
-        var secVal = secrets[sec].textContent || secrets[sec].innerText || '';
-        if (secVal.trim() !== '') {
-          obs.sharedSecretPresent = true;
-          break;
+    // 6. SharedSecret structurally belonging to Header/Sender Credentials
+    var structuralHeader = getStructuralHeader(doc);
+    if (structuralHeader) {
+      var senders = getDirectElementChildren(structuralHeader, 'Sender');
+      for (var senderIndex = 0; senderIndex < senders.length && !obs.sharedSecretPresent; senderIndex++) {
+        var senderCredentials = getDirectElementChildren(senders[senderIndex], 'Credential');
+        for (var credentialIndex = 0; credentialIndex < senderCredentials.length && !obs.sharedSecretPresent; credentialIndex++) {
+          var secrets = getDirectElementChildren(senderCredentials[credentialIndex], 'SharedSecret');
+          for (var sec = 0; sec < secrets.length; sec++) {
+            var secVal = secrets[sec].textContent || secrets[sec].innerText || '';
+            if (secVal.trim() !== '') {
+              obs.sharedSecretPresent = true;
+              break;
+            }
+          }
         }
       }
     }
@@ -183,6 +204,24 @@ window.XMLValidator = window.XMLValidator || {};
       }
     }
     return result;
+  }
+
+  /**
+   * Collect direct DocumentReference payloadIDs associated with one backing reference
+   * @param {Element} referenceElement
+   * @param {Array<string>} target
+   * @param {Object} observations
+   */
+  function collectReferencePayloadIDs(referenceElement, target, observations) {
+    var documentReferences = getDirectElementChildren(referenceElement, 'DocumentReference');
+    for (var i = 0; i < documentReferences.length; i++) {
+      var payloadID = documentReferences[i].getAttribute('payloadID');
+      var observedValue = payloadID === null ? '' : payloadID;
+      target.push(observedValue);
+      if (observedValue.trim() === '') {
+        observations.emptyDocumentReferencePayloadID = true;
+      }
+    }
   }
 
   /**
