@@ -1,12 +1,6 @@
 /**
  * XML Invoice Validator - XML Parser Module
  * 
- * Objective XML syntax parsing & error extraction.
- * Implementation will be integrated in Phase 2.
- */
-/**
- * XML Invoice Validator - XML Parser Module
- * 
  * Objective XML syntax parsing, parsererror detection, error extraction,
  * line/column resolution, snippet generation, and metadata extraction.
  * 

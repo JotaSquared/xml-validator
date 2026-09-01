@@ -1,68 +1,67 @@
 # XML Invoice Validator
 
-Herramienta técnica empresarial y portable para el diagnóstico, análisis y validación de facturas y documentos XML para integraciones Coupa.
+Offline, browser-based inspection of cXML invoices against the structural behavior established in Phase 8A. The production application is Vanilla JavaScript and can be opened directly from the repository with `file://`; it has no runtime package manager, build step, local server, or AI service dependency.
 
-## Cómo ejecutar
+Passing this validator does not guarantee acceptance by Coupa. Transaction validity can also depend on buyer, supplier, and Coupa-instance configuration. Compliant Invoicing is outside this project's current scope.
 
-1. Copiar o descomprimir la carpeta `xml-invoice-validator` en cualquier computador.
-2. Abrir el archivo `index.html` directamente haciendo doble clic o arrastrándolo a Google Chrome o Microsoft Edge.
-3. No requiere instalación de ningún software ni configuración previa.
+## Run the application
 
-## Requisitos
+1. Clone or copy the repository.
+2. Open `index.html` in a modern browser, including by double-clicking it or using a `file://` URL.
+3. Paste, drop, or select a cXML file and run validation.
 
-- **Navegador web moderno:** Google Chrome o Microsoft Edge.
-- **Sin dependencias adicionales:** No requiere Node.js, npm, servidores locales (Apache/Nginx/IIS), extensiones, ni conexión a Internet.
-- **Ejecución vía `file://`:** Funciona de forma 100% autónoma en modo local.
+No installation or build command is required. All application assets and the reference catalog are local to the repository.
 
-## Privacidad y Seguridad
+## Validation architecture
 
-- **100% Local y Offline:** Todos los archivos XML cargados son procesados directamente en la memoria del navegador del usuario mediante la API estándar `FileReader`.
-- **Sin telemetría ni subida de datos:** La aplicación no realiza peticiones de red (`fetch`, `XMLHttpRequest`, `WebSocket`), no consume APIs externas ni transmite información fuera del equipo.
-- **Persistencia segura:** Únicamente se guarda la preferencia visual de tema (Light/Dark mode) en `localStorage`. Nunca se almacena el contenido XML ni datos confidenciales.
+The application keeps three concerns logically separate:
 
-## Estructura del Proyecto
+1. **XML syntax validation** — `js/xmlParser.js` uses the browser's `DOMParser` to parse user input and reports malformed XML before structural processing.
+2. **cXML/Coupa structural validation** — `js/xmlAnalyzer.js` produces the internal analysis model; `js/ruleEngine.js` executes the registered rules from `js/validationRules.js` and normalizes findings.
+3. **Reference comparison** — `js/templateComparator.js` compares the analyzed input with a separately selected reference from the catalog. Comparison results are not structural findings.
+
+`js/app.js` coordinates user input, parsing, analysis, validation, comparison, and rendering. `js/ui.js`, `js/treeRenderer.js`, and `js/xmlFormatter.js` handle presentation. `js/templateCatalog.js` exposes the 17 active Coupa references embedded in `data/templates.js` without altering their XML content.
+
+The production structural rule registry contains exactly these 11 rules:
+
+- `CXML_ENV_001`
+- `CXML_ENV_002`
+- `CXML_ENV_003`
+- `CXML_HEADER_001`
+- `CXML_CREDENTIAL_001`
+- `CXML_CREDENTIAL_002`
+- `COUPA_INV_001`
+- `CXML_INV_HEADER_001`
+- `CXML_INV_HEADER_002`
+- `CXML_INV_HEADER_003`
+- `CXML_ORDER_001`
+
+Structural observations describe detected document characteristics such as invoice purpose, backing type, invoice-line counts, tax placement, and Sender `SharedSecret` presence. They do not add validation findings or new Coupa requirements.
+
+## Repository layout
 
 ```text
-xml-invoice-validator/
-│
-├── index.html                  # Punto de entrada autónomo (abrir en navegador)
-│
-├── css/
-│   └── styles.css              # Estilos CSS con soporte Light/Dark theme y layout 50/50
-│
-├── data/
-│   └── templates.js            # Plantillas de referencia Coupa (inicialmente vacío)
-│
-├── js/
-│   ├── utils.js                # Funciones auxiliares de conteo y formateo
-│   ├── xmlParser.js            # Módulo de parseo sintáctico objetivo
-│   ├── xmlFormatter.js         # Módulo de formateo e indentación segura
-│   ├── xmlAnalyzer.js          # Módulo de análisis estructural descriptivo
-│   ├── ruleEngine.js           # Motor de evaluación de reglas
-│   ├── validationRules.js      # Catálogo de reglas de validación
-│   ├── templateComparator.js   # Comparador de diferencias contra plantillas
-│   ├── treeRenderer.js         # Renderizador del árbol jerárquico XML
-│   ├── ui.js                   # Controlador de pestañas, notificaciones y tema
-│   └── app.js                  # Inicialización y gestión de eventos de la aplicación
-│
-└── README.md                   # Documentación de uso y arquitectura
+index.html                 Application entry point
+css/styles.css             Application styles
+data/templates.js          Embedded 17-reference Coupa catalog
+js/                        Vanilla JavaScript production modules
+tests/                     Browser-native regression harness and documentation
+AGENTS.md                  Project constraints and development policy
 ```
 
-## Estado Actual
+## Privacy and external dependencies
 
-**Fase 5 — XML Template Comparison Engine:**
-- **Comparador Estructural Descriptivo (`XMLValidator.Comparator`):** Permite contrastar de forma neutral la estructura del XML analizado contra un XML de referencia sin convertir las diferencias en errores o warnings arbitrarios.
-- **Identidad Agnóstica al Prefijo (Namespace-Aware):** Comparación basada en tuplas canónicas `(namespaceURI, localName)` para evitar falsos positivos ante prefijos XML arbitrarios o aliases de namespace.
-- **Comparación Independiente del Orden de Hermanos:** Los elementos hermanos se agrupan canónicamente para no penalizar reordenamientos sintácticamente válidos.
-- **Categorías de Diferencias Estructurales:**
-  - `MISSING_ELEMENT`: Elementos presentes en la referencia y ausentes en el XML analizado.
-  - `ADDITIONAL_ELEMENT`: Elementos presentes en el XML analizado y ausentes en la referencia.
-  - `ATTRIBUTE_MISSING` / `ATTRIBUTE_ADDITIONAL`: Presencia o ausencia de atributos (los valores se omiten por defecto al ser datos transaccionales).
-  - `OCCURRENCE_DIFFERENCE`: Diferencias en la cardinalidad o conteo de repetición de elementos.
-  - `HIERARCHY_DIFFERENCE`: Detección de reubicación jerárquica de elementos dentro del documento.
-- **Aislamiento e Importación Local:** Importación de XML de referencia vía `FileReader` nativo, rechazo de XML malformados sin alterar el documento principal, y limpieza independiente (`Clear Reference`).
-- **Sincronización con el Visor de Árbol:** Enlace directo desde los hallazgos de comparación hacia los nodos del árbol (`View in XML Tree`).
-- **Directiva de Procedencia (Provenance):** Soporte en fuentes de validación y plantillas para el atributo `publisher: "Coupa"` y tipologías estandarizadas (`OFFICIAL_DOCUMENTATION`, `SPECIFICATION`, `CUSTOM_REFERENCE`, `INTERNAL_CONFIRMED_RULE`).
-- **Suite de Pruebas Autónomas (15 Tests):** Validación interna ejecutada y verificada con 100% de éxito en entorno de desarrollo.
-- **Portabilidad 100% Offline:** Total compatibilidad con `file://`, sin dependencias externas, APIs de red ni llamadas `fetch`.
+XML processing occurs in the browser. The application does not upload documents and does not use `fetch`, XMLHttpRequest, WebSocket, analytics, Gemini, or another AI service. Theme preference is the only application value stored in `localStorage`. Source URLs shown with rules or references are descriptive links and are not fetched during validation.
 
+The parser does not download or validate remote DTDs. Structural validation implements only the registered, evidence-backed rules; it is not a complete cXML schema validator and does not model every deployment-specific Coupa requirement.
+
+## Regression tests
+
+The browser-native suites exercise the same production parser, analyzer, rule engine, registry, observations, and embedded references used by the application:
+
+- `tests/phase-8a-regression.html` — 11 production rules, all 17 references, and 23 Phase 8A scenarios.
+- `tests/phase-8a-1b1-contract.html` — 2 RuleEngine contract tests.
+- `tests/phase-8a-1b2-scope.html` — 7 XML scope and hierarchy tests.
+- `tests/phase-8a-1b3-observations.html` — 12 structural observation tests.
+
+Open each HTML file directly with `file://`. Each suite prints individual results and a final aggregate. See `tests/README.md` for coverage details and expected output.
