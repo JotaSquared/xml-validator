@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Phase 8A.1B-3 Structural Observation Tests</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; color: #172033; }
+    .pass { color: #087443; }
+    .fail { color: #b42318; }
+    li { margin: 0.5rem 0; }
+    #tab_pane_validation, #tab_pane_details { display: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Phase 8A.1B-3 Structural Observation Tests</h1>
+    <div id="suite_status" role="status">Running...</div>
+    <ol id="test_results"></ol>
+  </main>
+  <div id="tab_pane_validation"></div>
+  <div id="tab_pane_details"></div>
+
+  <script src="../js/utils.js"></script>
+  <script src="../js/xmlParser.js"></script>
+  <script src="../js/xmlAnalyzer.js"></script>
+  <script src="../js/ruleEngine.js"></script>
+  <script src="../js/validationRules.js"></script>
+  <script src="../js/scenarioResolver.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="phase-8a-1b3-observations.js"></script>
+</body>
+</html>

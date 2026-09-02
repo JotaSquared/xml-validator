@@ -1,8 +1,9 @@
-node_modules/
-build/
-dist/
-coverage/
 .DS_Store
 *.log
-.env*
-!.env.example
+
+# Deliberately local work artifacts. Approved XML corpora remain tracked under
+# reference-sources/ and tests/sample-payloads/.
+local-scratch/
+local-xml/
+*.local.xml
+*.private.xml

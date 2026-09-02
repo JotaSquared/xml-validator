@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phase 8B Regression Suite</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; color: #172033; }
+    .pending { color: #805500; }
+    .pass { color: #08752c; }
+    .fail { color: #b42318; }
+    li { margin: .45rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Phase 8B Invoice Body &amp; Line Structure Tests</h1>
+  <p id="suite_status" class="pending">Running…</p>
+  <div id="aggregate_output"></div>
+  <ol id="test_results"></ol>
+
+  <script src="../js/xmlParser.js"></script>
+  <script src="../js/xmlAnalyzer.js"></script>
+  <script src="../js/ruleEngine.js"></script>
+  <script src="../js/validationRules.js"></script>
+  <script src="phase-8b-regression.js"></script>
+</body>
+</html>

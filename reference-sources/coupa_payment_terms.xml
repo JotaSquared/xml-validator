@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE cXML SYSTEM "http://xml.cxml.org/schemas/cXML/1.2/InvoiceDetail.dtd">
+<cXML version="1.0" payloadID="xxx.xxxx@example.coupahost.com" timestamp="2014-03-04T12:00:00-00:00">
+	<Header>
+		<From>
+			<Credential domain="DUNS">
+				<Identity>xxxxxxxx</Identity>
+			</Credential>
+		</From>
+		<To>
+			<Credential domain="NetworkID">
+				<Identity>yyyyyyyy</Identity>
+			</Credential>
+		</To>
+		<Sender>
+			<Credential domain="DUNS">
+				<Identity>xxxxxxxxx</Identity>
+				<SharedSecret>xxxxxxxxx</SharedSecret>
+			</Credential>
+			<UserAgent>Coupa Procurement 1.0</UserAgent>
+		</Sender>
+	</Header>
+	<Request deploymentMode="production">
+		<InvoiceDetailRequest>
+			<InvoiceDetailRequestHeader invoiceID="900522Mar0314" purpose="standard" 
+						operation="new" invoiceDate="2014-03-03T12:00:00-00:00">
+				<InvoiceDetailHeaderIndicator/>
+				<InvoiceDetailLineIndicator isAccountingInLine="yes"/>
+				<InvoicePartner>
+					<Contact role="soldTo">
+						<Name xml:lang="en-US">COUPA</Name>
+						<PostalAddress>
+							<Street>													</Street>
+							<Street>123 Main St</Street>
+							<City>San Mateo</City>
+							<State>CA</State>
+							<PostalCode>94402</PostalCode>
+							<Country isoCountryCode="US">United States</Country>
+						</PostalAddress>
+					</Contact>
+				</InvoicePartner>
+				<InvoicePartner>
+					<Contact role="billTo" addressID="1057	">
+						<Name xml:lang="en-US">COUPA</Name>
+						<PostalAddress>
+							<Street>123 Main St</Street>
+							<City>San Mateo</City>
+							<State>CA</State>
+							<PostalCode>94402</PostalCode>
+							<Country isoCountryCode="US">United States</Country>
+						</PostalAddress>
+					</Contact>
+				</InvoicePartner>
+				<PaymentTerm payInNumberofDays="30">
+					<Discount>
+						<DiscountPercent percent="2" />
+						<DiscountDueDays>20</DiscountDueDays>
+					</Discount>
+					<NetDueDays>30</NetDueDays>
+				</PaymentTerm>
+			</InvoiceDetailRequestHeader>
+			<InvoiceDetailOrder>
+				<InvoiceDetailOrderInfo>
+					<OrderReference>
+						<DocumentReference payloadID="1352"/>
+					</OrderReference>
+				</InvoiceDetailOrderInfo>
+				<InvoiceDetailItem invoiceLineNumber="1" quantity="1">
+					<UnitOfMeasure>EA</UnitOfMeasure>
+					<UnitPrice>
+						<Money currency="USD">12.42</Money>
+					</UnitPrice>
+					<InvoiceDetailItemReference lineNumber="1">
+						<ItemID>
+							<SupplierPartID>N189465</SupplierPartID>
+						</ItemID>
+						<Description xml:lang="en-US">Paper Mate - Profile Retractable Ballpoint Pens - Black, Bold, 12/Pack</Description>
+						<ManufacturerPartID>MF4770N		 </ManufacturerPartID>
+						<ManufacturerName xml:lang="en-US">CANON </ManufacturerName>
+					</InvoiceDetailItemReference>
+					<SubtotalAmount>
+						<Money currency="USD">12.42</Money>
+					</SubtotalAmount>
+					<GrossAmount>
+						<Money currency="USD">12.42</Money>
+					</GrossAmount>
+					<NetAmount>
+						<Money currency="USD">12.42</Money>
+					</NetAmount>
+				</InvoiceDetailItem>
+			</InvoiceDetailOrder>
+			<InvoiceDetailSummary>
+				<SubtotalAmount>
+					<Money currency="USD">12.42</Money>
+				</SubtotalAmount>
+				<Tax>
+					<Money currency="USD"></Money>
+					<Description xml:lang="en-US"/>
+					<TaxDetail purpose="tax" category="sales" percentageRate="0">
+						<TaxableAmount>
+							<Money currency="USD">12.42</Money>
+						</TaxableAmount>
+						<TaxAmount>
+							<Money currency="USD"></Money>
+						</TaxAmount>
+						<TaxLocation xml:lang="en-US">usa</TaxLocation>
+					</TaxDetail>
+				</Tax>
+				<ShippingAmount>
+					<Money currency="USD">.00</Money>
+				</ShippingAmount>
+				<GrossAmount>
+					<Money currency="USD">12.42</Money>
+				</GrossAmount>
+				<NetAmount>
+					<Money currency="USD">12.42</Money>
+				</NetAmount>
+				<DueAmount>
+					<Money currency="USD">12.42</Money>
+				</DueAmount>
+			</InvoiceDetailSummary>
+		</InvoiceDetailRequest>
+	</Request>
+</cXML>

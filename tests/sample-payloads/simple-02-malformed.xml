@@ -1,0 +1,1 @@
+<?xml version="1.0"?><cXML payloadID="PAYLOAD-TEST-S02" timestamp="2026-09-01T00:00:00Z"><Header><From><Credential domain="NetworkID"><Identity>SUPPLIER-TEST</Identity></Credential></From></Header><Request><InvoiceDetailRequest></Request></cXML>

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE cXML SYSTEM "http://xml.cXML.org/schemas/cXML/1.2.008/InvoiceDetail.dtd">
+<cXML version="1.1.008" payloadID="201404091618341618340.106@coupa.com" timestamp="2014-04-09T16:18:34-07:00">
+	 <Header>
+			<From>
+				 <Credential domain="NetworkID">
+						<Identity>TEST</Identity>
+						<SharedSecret>InvoicePROD</SharedSecret>
+				 </Credential>
+			</From>
+			<To>
+				 <Credential domain="NetworkID">
+						<Identity>TEST</Identity>
+				 </Credential>
+			</To>
+			<Sender>
+				 <Credential domain="NetworkID">
+						<Identity>TEST</Identity>
+						<SharedSecret>InvoicePROD</SharedSecret>
+				 </Credential>
+				 <UserAgent>CatalogManager</UserAgent>
+			</Sender>
+	 </Header>
+	 <Request deploymentMode="production">
+			<InvoiceDetailRequest>
+				 <InvoiceDetailRequestHeader invoiceID="2650" invoiceDate="2014-04-04T00:00:00-07:00" operation="new" purpose="standard">
+						<InvoiceDetailHeaderIndicator />
+						<InvoiceDetailLineIndicator isAccountingInLine="yes" />
+						<InvoiceDetailPaymentTerm payInNumberOfDays="030" percentageRate="000000" />
+				 </InvoiceDetailRequestHeader>
+				 <InvoiceDetailOrder>
+						<InvoiceDetailOrderInfo>
+							 <OrderReference>
+									<DocumentReference payloadID="10050" />
+							 </OrderReference>
+						</InvoiceDetailOrderInfo>
+						<InvoiceDetailServiceItem invoiceLineNumber="00001" quantity="1">
+							 <InvoiceDetailServiceItemReference lineNumber="00001" />
+							 <SubtotalAmount>
+									<Money currency="USD">501.36</Money>
+							 </SubtotalAmount>
+							 <UnitOfMeasure>HUR</UnitOfMeasure>
+							 <UnitPrice>
+									<Money currency="USD">501.36</Money>
+							 </UnitPrice>
+						</InvoiceDetailServiceItem>
+				 </InvoiceDetailOrder>
+				 <InvoiceDetailSummary>
+						<SubtotalAmount>
+							 <Money currency="USD">501.36</Money>
+						</SubtotalAmount>
+						<Tax>
+							 <Money currency="USD">0</Money>
+							 <Description xml:lang="en">Total Tax Invoice</Description>
+							 <TaxDetail purpose="tax" category="sales">
+									<TaxableAmount>
+										 <Money currency="USD">501.36</Money>
+									</TaxableAmount>
+									<TaxAmount>
+										 <Money currency="USD">0</Money>
+									</TaxAmount>
+							 </TaxDetail>
+						</Tax>
+						<GrossAmount>
+							 <Money currency="USD">501.36</Money>
+						</GrossAmount>
+						<NetAmount>
+							 <Money currency="USD">501.36</Money>
+						</NetAmount>
+						<DueAmount>
+							 <Money currency="USD">501.36</Money>
+						</DueAmount>
+				 </InvoiceDetailSummary>
+			</InvoiceDetailRequest>
+	 </Request>
+</cXML>

@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE cXML SYSTEM "http://xml.cXML.org/schemas/cXML/1.2.020/InvoiceDetail.dtd">
+<cXML version="1.2.033" payloadID="frieslandcampina-dev.coupahost.com" timestamp="2017-04-20T16:29:14+00:00">
+   <Header>
+      <From>
+         <Credential domain="987654">
+            <Identity>987654</Identity>
+            <SharedSecret>987654</SharedSecret>
+         </Credential>
+      </From>
+      <To>
+         <Credential domain="987654">
+            <Identity>987654</Identity>
+         </Credential>
+      </To>
+      <Sender>
+         <Credential domain="987654">
+            <Identity>987654</Identity>
+            <SharedSecret>987654</SharedSecret>
+         </Credential>
+         <UserAgent>Your Very Own Agent 1.23</UserAgent>
+      </Sender>
+   </Header>
+   <Request deploymentMode="production">
+      <InvoiceDetailRequest>
+         <InvoiceDetailRequestHeader invoiceID="AZ_15" purpose="standard" operation="new"
+         invoiceDate="2015-04-30T11:45:51-07:00">
+            <InvoiceDetailHeaderIndicator />
+            <InvoiceDetailLineIndicator isAccountingInLine="yes" />
+            <PaymentTerm payInNumberOfDays="30" />
+         </InvoiceDetailRequestHeader>
+         <InvoiceDetailOrder>
+            <InvoiceDetailOrderInfo>
+               <OrderReference>
+                  <DocumentReference payloadID="ADAMZ_PO_3way_004" />
+               </OrderReference>
+               <SupplierOrderInfo orderID="ADAMZ_PO_3way_004" />
+            </InvoiceDetailOrderInfo>
+            <!-- First invoice quantity line. -->
+            <InvoiceDetailItem invoiceLineNumber="1" quantity="1">
+               <UnitOfMeasure>EA</UnitOfMeasure>
+               <UnitPrice>
+                  <Money currency="USD">16.2</Money>
+               </UnitPrice>
+               <InvoiceDetailItemReference lineNumber="1">
+                  <Description xml:lang="en">The Red Swingline Staplert</Description>
+               </InvoiceDetailItemReference>
+               <SubtotalAmount>
+                  <Money currency="USD">16.2</Money>
+               </SubtotalAmount>
+               <Extrinsic name="MatchReference">ADAMCXML1</Extrinsic>
+            </InvoiceDetailItem>
+         </InvoiceDetailOrder>
+         <InvoiceDetailSummary>
+            <SubtotalAmount>
+               <Money currency="USD">16.2</Money>
+            </SubtotalAmount>
+            <Tax>
+               <Money currency="USD" alternateAmount="0" alternateCurrency="EUR">0</Money>
+               <Description xml:lang="en">total tax</Description>
+               <TaxDetail purpose="tax" category="Standard Rate" percentageRate="0"
+               taxPointDate="2014-06-30T11:45:51-07:00">
+                  <TaxableAmount>
+                     <Money currency="USD">16.2</Money>
+                  </TaxableAmount>
+                  <TaxAmount>
+                     <Money currency="USD">0</Money>
+                  </TaxAmount>
+                  <TaxLocation xml:lang="en" />
+               </TaxDetail>
+            </Tax>
+            <NetAmount>
+               <Money currency="USD" />
+            </NetAmount>
+         </InvoiceDetailSummary>
+      </InvoiceDetailRequest>
+   </Request>
+</cXML>

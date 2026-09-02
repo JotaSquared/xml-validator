@@ -47,6 +47,104 @@
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", Courier, monospace;
 }
 
+/* Phase 8B.1 invoice-centric presentation */
+.success-question,
+.structure-question {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.invoice-details-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.invoice-details-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-panel-secondary);
+}
+
+.invoice-details-heading h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 17px;
+}
+
+.invoice-details-heading p {
+  margin: 4px 0 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.invoice-profile-badge {
+  flex: 0 0 auto;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.invoice-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.invoice-detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-panel-secondary);
+}
+
+.invoice-detail-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.invoice-detail-value {
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.invoice-detail-break {
+  overflow-wrap: anywhere;
+}
+
+.invoice-technical-details .invoice-detail-row {
+  margin-top: 7px;
+}
+
+@media (max-width: 760px) {
+  .invoice-details-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .invoice-details-heading {
+    flex-direction: column;
+  }
+}
+
 [data-theme="dark"] {
   --bg-app: #0f172a;
   --bg-header: #1e293b;
@@ -577,6 +675,21 @@ html, body {
 
 .tab-button:hover {
   color: var(--text-primary);
+}
+
+.btn:focus-visible,
+.tab-button:focus-visible,
+.finding-btn-view-node:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.error-card,
+.finding-correction-box,
+.invoice-detail-value,
+.meta-pill {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .tab-button.active {

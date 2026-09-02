@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phase 8C Scenario Detection Tests</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 2rem; color: #172033; }
+    .pending { color: #805500; } .pass { color: #08752c; } .fail { color: #b42318; }
+    li { margin: .4rem 0; } table { border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #ccd2dc; padding: .4rem .6rem; text-align: left; }
+  </style>
+</head>
+<body>
+  <h1>Phase 8C Scenario Detection &amp; Applicability</h1>
+  <p id="suite_status" class="pending">Running…</p>
+  <div id="aggregate_output"></div>
+  <ol id="test_results"></ol>
+  <div id="reference_report"></div>
+
+  <script src="../js/utils.js"></script>
+  <script src="../js/templateCatalog.js"></script>
+  <script src="../data/templates.js"></script>
+  <script src="../js/xmlParser.js"></script>
+  <script src="../js/xmlAnalyzer.js"></script>
+  <script src="../js/ruleEngine.js?phase=8c1"></script>
+  <script src="../js/validationRules.js"></script>
+  <script src="../js/scenarioResolver.js?phase=8c1"></script>
+  <script src="phase-8c-scenarios.js?phase=8c2"></script>
+</body>
+</html>
