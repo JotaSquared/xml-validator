@@ -81,9 +81,18 @@ XMLValidator.RuleEngine = (function () {
       errors.push('Rule must specify a "validate(context)" function.');
     }
 
-    // 7. AppliesTo check (optional function, but if provided must be a function)
+    // 7. AppliesTo check (optional predicate or declarative scenario filter)
     if (rule.appliesTo !== undefined && rule.appliesTo !== null && typeof rule.appliesTo !== 'function') {
-      errors.push('Rule "appliesTo" property, if specified, must be a function.');
+      if (typeof rule.appliesTo !== 'object' || Array.isArray(rule.appliesTo)) {
+        errors.push('Rule "appliesTo" property, if specified, must be a function or scenario filter object.');
+      } else {
+        var allowedDimensions = ['documentType', 'purpose', 'bodyMode', 'lineProfile', 'backing', 'taxProfile', 'features'];
+        for (var dimension in rule.appliesTo) {
+          if (rule.appliesTo.hasOwnProperty(dimension) && (allowedDimensions.indexOf(dimension) === -1 || !Array.isArray(rule.appliesTo[dimension]) || rule.appliesTo[dimension].length === 0)) {
+            errors.push('Rule "appliesTo.' + dimension + '" must be a non-empty array for a supported scenario dimension.');
+          }
+        }
+      }
     }
 
     return {
@@ -133,7 +142,7 @@ XMLValidator.RuleEngine = (function () {
         reference: rule.source.reference || null,
         url: rule.source.url || null
       },
-      appliesTo: typeof rule.appliesTo === 'function' ? rule.appliesTo : null,
+      appliesTo: typeof rule.appliesTo === 'function' ? rule.appliesTo : cloneApplicabilityFilter(rule.appliesTo),
       validate: rule.validate
     });
 
@@ -142,6 +151,15 @@ XMLValidator.RuleEngine = (function () {
       ruleId: rule.id,
       errors: []
     };
+  }
+
+  function cloneApplicabilityFilter(filter) {
+    if (!filter || typeof filter !== 'object' || Array.isArray(filter)) return null;
+    var cloned = {};
+    for (var key in filter) {
+      if (filter.hasOwnProperty(key) && Array.isArray(filter[key])) cloned[key] = filter[key].slice();
+    }
+    return cloned;
   }
 
   /**
@@ -216,7 +234,20 @@ XMLValidator.RuleEngine = (function () {
    */
   function evaluateApplicability(rule, context) {
     if (!rule.appliesTo) {
-      return { applicable: true, reason: 'Rule applies by default (no custom appliesTo predicate).' };
+      return { status: 'APPLIES', applicable: true, reason: 'Rule applies by default (no custom appliesTo predicate).' };
+    }
+
+    if (typeof rule.appliesTo === 'object') {
+      var scenario = context && context.scenario;
+      if (!scenario) return { status: 'UNKNOWN', applicable: null, reason: 'Scenario context is unavailable.' };
+      for (var dimension in rule.appliesTo) {
+        if (!rule.appliesTo.hasOwnProperty(dimension)) continue;
+        var actual = dimension === 'purpose' ? (scenario.purpose && scenario.purpose.type) : scenario[dimension];
+        if (actual === undefined || actual === null) return { status: 'UNKNOWN', applicable: null, reason: 'Scenario dimension "' + dimension + '" is unavailable.' };
+        var matches = dimension === 'features' ? rule.appliesTo[dimension].every(function (feature) { return Array.isArray(actual) && actual.indexOf(feature) !== -1; }) : rule.appliesTo[dimension].indexOf(actual) !== -1;
+        if (!matches) return { status: 'NOT_APPLICABLE', applicable: false, reason: 'Scenario dimension "' + dimension + '" does not match.' };
+      }
+      return { status: 'APPLIES', applicable: true, reason: 'All declared scenario dimensions match.' };
     }
 
     try {
@@ -225,6 +256,7 @@ XMLValidator.RuleEngine = (function () {
       // Soportar retorno booleano directo
       if (typeof result === 'boolean') {
         return {
+          status: result ? 'APPLIES' : 'NOT_APPLICABLE',
           applicable: result,
           reason: result ? 'Rule applies to document context.' : 'Rule does not apply to this document context.'
         };
@@ -237,6 +269,7 @@ XMLValidator.RuleEngine = (function () {
           isApp = null;
         }
         return {
+          status: isApp === null ? 'UNKNOWN' : (isApp ? 'APPLIES' : 'NOT_APPLICABLE'),
           applicable: isApp,
           reason: result.reason || (isApp === null ? 'Applicability is unknown/undetermined.' : (isApp ? 'Rule applies.' : 'Rule does not apply.'))
         };
@@ -245,17 +278,20 @@ XMLValidator.RuleEngine = (function () {
       // Si retorna null o undefined
       if (result === null || result === undefined) {
         return {
+          status: 'UNKNOWN',
           applicable: null,
           reason: 'Applicability is undetermined (returned null/undefined).'
         };
       }
 
       return {
+        status: Boolean(result) ? 'APPLIES' : 'NOT_APPLICABLE',
         applicable: Boolean(result),
         reason: 'Applicability coerced from truthy/falsy evaluation.'
       };
     } catch (err) {
       return {
+        status: 'UNKNOWN',
         applicable: null,
         reason: 'Error evaluating applicability: ' + (err && err.message ? err.message : String(err))
       };
@@ -288,7 +324,9 @@ XMLValidator.RuleEngine = (function () {
           expected: null,
           actual: null,
           suggestion: null,
-          autoFixable: false
+          autoFixable: false,
+          safety: 'NOT_AUTOFIXABLE',
+          reason: 'No deterministic correction is available.'
         },
         source: rule.source
       };
@@ -325,14 +363,27 @@ XMLValidator.RuleEngine = (function () {
         expected: finding.correction.expected !== undefined ? finding.correction.expected : null,
         actual: finding.correction.actual !== undefined ? finding.correction.actual : null,
         suggestion: finding.correction.suggestion !== undefined ? finding.correction.suggestion : (finding.suggestion || null),
-        autoFixable: Boolean(finding.correction.autoFixable)
+        autoFixable: false,
+        safety: finding.correction.safety === 'SAFE_RESTRUCTURE' || finding.correction.safety === 'SAFE_METADATA_FIX' ? finding.correction.safety : 'NOT_AUTOFIXABLE',
+        reason: finding.correction.reason !== undefined ? finding.correction.reason : null
       };
     } else if (finding.suggestion) {
       correction = {
         expected: null,
         actual: null,
         suggestion: finding.suggestion,
-        autoFixable: false
+        autoFixable: false,
+        safety: 'NOT_AUTOFIXABLE',
+        reason: 'The required value or structure cannot be derived safely from the document.'
+      };
+    } else {
+      correction = {
+        expected: null,
+        actual: null,
+        suggestion: null,
+        autoFixable: false,
+        safety: 'NOT_AUTOFIXABLE',
+        reason: 'No deterministic correction is available.'
       };
     }
 
@@ -678,6 +729,7 @@ XMLValidator.RuleEngine = (function () {
     clear: clear,
     getRegisteredRules: getRegisteredRules,
     validateContract: validateContract,
+    evaluateApplicability: evaluateApplicability,
     run: run,
     runMockTests: runMockTests
   };

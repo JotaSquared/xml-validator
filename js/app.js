@@ -21,12 +21,14 @@ XMLValidator.App = (function () {
     parseResult: null,
     analysisResult: null,
     ruleResult: null,
+    scenario: null,
     selectedNodeId: null,
     activeProfile: null,
     activeTemplate: null,
     referenceViewMode: 'COUPA_TEMPLATE', // 'COUPA_TEMPLATE' | 'CUSTOM_REFERENCE'
     activeReference: null, // { sourceType, templateId, template, fileName, rawXml, parseResult, analysisResult, error }
     comparisonResult: null
+    ,lastFix: null
   };
 
   /**
@@ -311,6 +313,7 @@ XMLValidator.App = (function () {
    */
   function handleEditorInput() {
     updateEditorMetrics();
+    state.lastFix = null;
 
     // If analysis was previously executed, invalidate to prevent misleading results
     if (state.parseResult !== null || state.analysisResult !== null || state.ruleResult !== null) {
@@ -364,7 +367,7 @@ XMLValidator.App = (function () {
   }
 
   /**
-   * Select a node in the tree and synchronize the XML Details tab
+   * Select a node in the XML tree.
    * @param {string} nodeId 
    */
   function selectNode(nodeId) {
@@ -372,21 +375,15 @@ XMLValidator.App = (function () {
     if (XMLValidator.TreeRenderer && typeof XMLValidator.TreeRenderer.selectNode === 'function') {
       XMLValidator.TreeRenderer.selectNode(nodeId, false);
     }
-    if (XMLValidator.UI && typeof XMLValidator.UI.renderXmlDetails === 'function') {
-      XMLValidator.UI.renderXmlDetails(state.parseResult, state.analysisResult, getCurrentMetrics(), nodeId);
-    }
   }
 
   /**
-   * Clear current node selection and revert Details to Document Overview
+   * Clear current node selection.
    */
   function clearNodeSelection() {
     state.selectedNodeId = null;
     if (XMLValidator.TreeRenderer && typeof XMLValidator.TreeRenderer.selectNode === 'function') {
       XMLValidator.TreeRenderer.selectNode(null, false);
-    }
-    if (XMLValidator.UI && typeof XMLValidator.UI.renderXmlDetails === 'function') {
-      XMLValidator.UI.renderXmlDetails(state.parseResult, state.analysisResult, getCurrentMetrics(), null);
     }
   }
 
@@ -402,6 +399,7 @@ XMLValidator.App = (function () {
     state.parseResult = result;
     state.analysisResult = null;
     state.ruleResult = null;
+    state.scenario = null;
     state.selectedNodeId = null;
 
     var metrics = getCurrentMetrics();
@@ -411,7 +409,7 @@ XMLValidator.App = (function () {
       XMLValidator.UI.updateStatus('INVALID XML');
       XMLValidator.UI.updateCounters(1, '—', '—');
       XMLValidator.UI.renderValidationError(result.error);
-      XMLValidator.UI.renderXmlDetails(result, null, metrics, null);
+      XMLValidator.UI.renderInvoiceDetails(result, null, null);
 
       if (elements.tabTreePane) {
         XMLValidator.TreeRenderer.render(elements.tabTreePane, null, null, null);
@@ -441,6 +439,15 @@ XMLValidator.App = (function () {
 
       state.versionContext = versionContext;
       state.structuralObservations = structuralObservations;
+      var scenario = null;
+      if (XMLValidator.ScenarioResolver && typeof XMLValidator.ScenarioResolver.resolve === 'function') {
+        scenario = XMLValidator.ScenarioResolver.resolve({
+          xmlDocument: result.document,
+          analysis: analysis,
+          structuralObservations: structuralObservations
+        });
+      }
+      state.scenario = scenario;
 
       // Construct neutral Rule Context
       var ruleContext = {
@@ -449,6 +456,7 @@ XMLValidator.App = (function () {
         parserMetadata: result.metadata,
         versionContext: versionContext,
         structuralObservations: structuralObservations,
+        scenario: scenario,
         tree: analysis.tree,
         nodeIndex: analysis.nodeIndex,
         statistics: analysis.statistics,
@@ -483,6 +491,17 @@ XMLValidator.App = (function () {
           };
         }
       }
+      if (ruleResult && ruleResult.findings && XMLValidator.CorrectionEngine) {
+        for (var findingIndex = 0; findingIndex < ruleResult.findings.length; findingIndex++) {
+          var correctionPlan = XMLValidator.CorrectionEngine.plan(
+            ruleResult.findings[findingIndex],
+            ruleContext
+          );
+          ruleResult.findings[findingIndex].correctionPlan = correctionPlan;
+          ruleResult.findings[findingIndex].correction.safety = correctionPlan.safety;
+          ruleResult.findings[findingIndex].correction.reason = correctionPlan.explanation;
+        }
+      }
       state.ruleResult = ruleResult;
 
       // Determine overall status
@@ -499,7 +518,7 @@ XMLValidator.App = (function () {
       }
 
       XMLValidator.UI.updateCounters(errorsCount, warningsCount, infoCount);
-      XMLValidator.UI.renderValidationSuccess(result.metadata, ruleResult, versionContext, structuralObservations, state.activeTemplate);
+      XMLValidator.UI.renderValidationSuccess(result.metadata, ruleResult, versionContext, structuralObservations, state.activeTemplate, scenario);
 
       if (analysis.success && analysis.tree) {
         state.selectedNodeId = analysis.tree.id;
@@ -514,10 +533,9 @@ XMLValidator.App = (function () {
           );
         }
 
-        // Render XML Details with initially selected root node
-        XMLValidator.UI.renderXmlDetails(result, analysis, metrics, state.selectedNodeId);
+        XMLValidator.UI.renderInvoiceDetails(result, scenario, versionContext);
       } else {
-        XMLValidator.UI.renderXmlDetails(result, null, metrics, null);
+        XMLValidator.UI.renderInvoiceDetails(result, scenario, versionContext);
       }
 
       XMLValidator.UI.switchTab('validation');
@@ -525,6 +543,44 @@ XMLValidator.App = (function () {
     }
 
     renderComparison();
+  }
+
+  function previewFix(findingIndex) {
+    var finding = state.ruleResult && state.ruleResult.findings ? state.ruleResult.findings[findingIndex] : null;
+    var currentXml = elements.editor ? elements.editor.value : '';
+    if (!finding || !finding.correctionPlan) return { success: false, reason: 'Correction plan is unavailable.' };
+    return XMLValidator.CorrectionEngine.preview(finding.correctionPlan, currentXml);
+  }
+
+  function applyFix(findingIndex) {
+    var finding = state.ruleResult && state.ruleResult.findings ? state.ruleResult.findings[findingIndex] : null;
+    var currentXml = elements.editor ? elements.editor.value : '';
+    if (!finding || !finding.correctionPlan) {
+      XMLValidator.UI.showNotification('Correction plan is unavailable. Validate the XML again.', 'warning', 3500);
+      return false;
+    }
+    var applied = XMLValidator.CorrectionEngine.apply(finding.correctionPlan, currentXml);
+    if (!applied.success) {
+      XMLValidator.UI.showNotification(applied.stale ? 'Correction plan is stale. Validate the changed XML again.' : 'Correction could not be applied safely.', 'warning', 4000);
+      return false;
+    }
+    state.lastFix = { originalXml: applied.originalXml, correctedXml: applied.proposedXml, ruleId: finding.code };
+    elements.editor.value = applied.proposedXml;
+    updateEditorMetrics();
+    handleValidate();
+    XMLValidator.UI.showNotification('Correction applied and XML revalidated.', 'info', 3500);
+    return true;
+  }
+
+  function undoLastFix() {
+    if (!state.lastFix || !elements.editor) return false;
+    var previous = state.lastFix.originalXml;
+    state.lastFix = null;
+    elements.editor.value = previous;
+    updateEditorMetrics();
+    handleValidate();
+    XMLValidator.UI.showNotification('Last correction undone and XML revalidated.', 'info', 3500);
+    return true;
   }
 
   /**
@@ -685,5 +741,8 @@ XMLValidator.App = (function () {
     handleValidate: handleValidate,
     handleFormat: handleFormat,
     handleClear: handleClear
+    ,previewFix: previewFix
+    ,applyFix: applyFix
+    ,undoLastFix: undoLastFix
   };
 })();

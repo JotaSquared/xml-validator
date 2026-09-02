@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE cXML SYSTEM "http://xml.cXML.org/schemas/cXML/1.2.020/InvoiceDetail.dtd">
+<cXML version="1.0" payloadID="1240598937@SUBDOMAIN.coupahost.com" timestamp="2014-06-30T01:24:51-07:00">
+	<Header>
+		<From>
+			<Credential domain="Dom1">
+				<Identity>Kyle</Identity>
+			</Credential>
+		</From>
+		<To>
+			<Credential domain="Dom2">
+				<Identity>Coupa</Identity>
+			</Credential>
+		</To>
+		<Sender>
+			<Credential domain="Dom3">
+				<Identity>Test</Identity>
+				<SharedSecret>Secret</SharedSecret>
+			</Credential>
+			<UserAgent>Your Very Own Agent 1.23</UserAgent>
+		</Sender>
+	</Header>
+	<Request deploymentMode="production">
+		<InvoiceDetailRequest>
+			<InvoiceDetailRequestHeader invoiceID="CD24706_882015_8" purpose="standard" operation="new" invoiceDate="2015-04-30T11:45:51-07:00">
+				<InvoiceDetailHeaderIndicator />
+				<InvoiceDetailLineIndicator isAccountingInLine="yes" />
+				<InvoicePartner>
+					<Contact role="remitTo" addressID="RTCode">
+						<Name xml:lang="en">RTName</Name>
+					</Contact>
+				</InvoicePartner>
+				<InvoicePartner>
+					<Contact role="billTo">
+						<Name xml:lang="en">xxx yyy</Name>
+						<PostalAddress name="default">
+							<Street>Line1</Street>
+							<Street>Line2</Street>
+							<City>City</City>
+							<State>State</State>
+							<PostalCode>151515</PostalCode>
+							<Country isoCountryCode="BE">1</Country>
+						</PostalAddress>
+						<Email name="default">harinni.coupa01@gmail.com</Email>
+						<Phone name="work">
+							<TelephoneNumber>
+								<CountryCode isoCountryCode="BE">Belgium</CountryCode>
+								<AreaOrCityCode>745</AreaOrCityCode>
+								<Number>+1 (987) 654-3210</Number>
+							</TelephoneNumber>
+						</Phone>
+					</Contact>
+				</InvoicePartner>
+				<PaymentTerm payInNumberOfDays="30" />
+			</InvoiceDetailRequestHeader>
+			<InvoiceDetailOrder>
+				<InvoiceDetailOrderInfo>
+					<MasterAgreementReference>
+						<!-- payloadID is the Contract number -->
+						<DocumentReference payloadID="441" />
+					</MasterAgreementReference>
+				</InvoiceDetailOrderInfo>
+				<!-- First invoice quantity line. -->
+				<InvoiceDetailItem invoiceLineNumber="1" quantity="1">
+					<UnitOfMeasure>EA</UnitOfMeasure>
+					<UnitPrice>
+						<Money currency="USD">100</Money>
+					</UnitPrice>
+					<InvoiceDetailItemReference lineNumber="1">
+						<Description xml:lang="en">Item01</Description>
+					</InvoiceDetailItemReference>
+					<SubtotalAmount>
+						<Money currency="USD">100</Money>
+					</SubtotalAmount>
+				</InvoiceDetailItem>
+			</InvoiceDetailOrder>
+			<InvoiceDetailSummary>
+				<SubtotalAmount>
+					<Money currency="USD">100</Money>
+				</SubtotalAmount>
+				<Tax>
+					<Money currency="USD" alternateAmount="10" alternateCurrency="EUR">8</Money>
+					<Description xml:lang="en">total tax</Description>
+					<TaxDetail purpose="tax" category="Standard Rate" percentageRate="20" taxPointDate="2014-06-30T11:45:51-07:00">
+						<TaxableAmount>
+							<Money currency="USD">100</Money>
+						</TaxableAmount>
+						<TaxAmount>
+							<Money currency="USD">20</Money>
+						</TaxAmount>
+						<TaxLocation xml:lang="en">CA</TaxLocation>
+					</TaxDetail>
+				</Tax>
+				<NetAmount>
+					<Money currency="USD" />
+				</NetAmount>
+			</InvoiceDetailSummary>
+		</InvoiceDetailRequest>
+	</Request>
+</cXML>

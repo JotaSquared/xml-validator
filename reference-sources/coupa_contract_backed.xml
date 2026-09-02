@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE cXML SYSTEM "http://xml.cXML.org/schemas/cXML/1.2.020/InvoiceDetail.dtd">
+<cXML version="1.0" payloadID="1240598937@SUBDOMAIN.coupahost.com" timestamp="2009-05-01T01:24:51-07:00">
+	 <Header>
+			<From>
+				 <Credential domain="DUNS">
+						<Identity>Kyle</Identity>
+				 </Credential>
+			</From>
+			<To>
+				 <Credential domain="DUNS">
+						<Identity>Coupa</Identity>
+				 </Credential>
+			</To>
+			<Sender>
+				 <Credential domain="DUNS">
+						<Identity>Kyle</Identity>
+						<SharedSecret>Shhh</SharedSecret>
+				 </Credential>
+				 <UserAgent>Your Very Own Agent 1.23</UserAgent>
+			</Sender>
+	 </Header>
+	 <Request deploymentMode="production">
+			<InvoiceDetailRequest>
+				 <InvoiceDetailRequestHeader invoiceID="735675n3" purpose="standard" operation="new" invoiceDate="2009-05-01T11:45:51-07:00">
+						<InvoiceDetailHeaderIndicator />
+						<InvoiceDetailLineIndicator isAccountingInLine="yes" />
+						<PaymentTerm payInNumberOfDays="30" />
+				 </InvoiceDetailRequestHeader>
+				 <InvoiceDetailOrder>
+						<InvoiceDetailOrderInfo>
+							 <MasterAgreementReference>
+									<!-- payloadID is the Contract number -->
+									<DocumentReference payloadID="2257" />
+							 </MasterAgreementReference>
+						</InvoiceDetailOrderInfo>
+						<!-- First invoice quantity line. -->
+						<InvoiceDetailItem invoiceLineNumber="1" quantity="1">
+							 <UnitOfMeasure>EA</UnitOfMeasure>
+							 <UnitPrice>
+									<Money currency="USD">365</Money>
+							 </UnitPrice>
+							 <!-- The lineNumber here is the backing PO line number, i.e. in this case, line 2 of PO #10 -->
+							 <InvoiceDetailItemReference lineNumber="1">
+									<!-- The Description will show up on the invoice's line description. Although it can be anything, 
+											 Coupa recommends that you make this the same as the backing PO line's description. -->
+									<Description xml:lang="en">NEW 1 NINTENDO WII GAME CONSOLE + WII FIT BUNDLE +GAMES</Description>
+							 </InvoiceDetailItemReference>
+							 <!-- Shows up as "Total" on the invoice line -->
+							 <SubtotalAmount>
+									<Money currency="USD">365</Money>
+							 </SubtotalAmount>
+						</InvoiceDetailItem>
+				 </InvoiceDetailOrder>
+				 <InvoiceDetailSummary>
+						<!-- Should add-up and be consistent with the subtotals on the invoice lines -->
+						<SubtotalAmount>
+							 <Money currency="USD">365</Money>
+						</SubtotalAmount>
+						<Tax>
+							 <Money currency="USD">8</Money>
+							 <Description xml:lang="en">total tax</Description>
+							 <TaxDetail purpose="tax" category="VAT" percentageRate="1" taxPointDate="2009-04-24T11:45:51-07:00">
+									<TaxableAmount>
+										 <Money currency="USD">365</Money>
+									</TaxableAmount>
+									<TaxAmount>
+										 <Money currency="USD">8</Money>
+									</TaxAmount>
+									<TaxLocation xml:lang="en">CA</TaxLocation>
+							 </TaxDetail>
+						</Tax>
+						<SpecialHandlingAmount>
+							 <Money currency="USD">5</Money>
+						</SpecialHandlingAmount>
+						<!-- Shipping costs -->
+						<ShippingAmount>
+							 <Money currency="USD">30</Money>
+						</ShippingAmount>
+						<NetAmount>
+							 <Money currency="USD" />
+						</NetAmount>
+				 </InvoiceDetailSummary>
+			</InvoiceDetailRequest>
+	 </Request>
+</cXML>

@@ -52,7 +52,9 @@
   }
 
   function itemLine(extra) {
-    return '<InvoiceDetailItem invoiceLineNumber="1" quantity="1">' + (extra || '') + '</InvoiceDetailItem>';
+    return '<InvoiceDetailItem invoiceLineNumber="1" quantity="1">' +
+      '<UnitOfMeasure>EA</UnitOfMeasure><UnitPrice/><InvoiceDetailItemReference/>' +
+      (extra || '') + '</InvoiceDetailItem>';
   }
 
   function serviceLine(extra) {
@@ -71,7 +73,8 @@
     if (opts.purpose !== null) attributes.push('purpose="' + (opts.purpose || 'standard') + '"');
     var header = opts.omitInvoiceHeader ? '' : '<InvoiceDetailRequestHeader ' + attributes.join(' ') + '>' + (opts.headerChildren || '') + '</InvoiceDetailRequestHeader>';
     var orders = opts.orders === undefined ? order() : opts.orders;
-    return '<InvoiceDetailRequest>' + header + orders + (opts.summary || '') + '</InvoiceDetailRequest>';
+    var invoiceSummary = opts.summary === undefined ? '<InvoiceDetailSummary/>' : opts.summary;
+    return '<InvoiceDetailRequest>' + header + orders + invoiceSummary + '</InvoiceDetailRequest>';
   }
 
   function documentXml(options) {
@@ -122,12 +125,14 @@
   }
 
   function verifyRegistry() {
-    record('rules', 'Exactly the 11 Phase 8A production rules are registered and enabled', function () {
+    record('rules', 'All 11 Phase 8A baseline production rules remain registered and enabled', function () {
       var registered = XMLValidator.RuleEngine.getRegisteredRules();
       var actualIds = registered.map(function (rule) { return rule.id; });
-      assert(registered.length === 11, 'Expected 11 registered rules, found ' + registered.length + '.');
-      assert(JSON.stringify(actualIds) === JSON.stringify(EXPECTED_RULE_IDS), 'Registered rule IDs or order differ from the Phase 8A contract.');
-      assert(registered.every(function (rule) { return rule.enabled === true; }), 'One or more production rules are disabled.');
+      EXPECTED_RULE_IDS.forEach(function (id) {
+        var index = actualIds.indexOf(id);
+        assert(index !== -1, 'Missing Phase 8A baseline rule ' + id + '.');
+        assert(registered[index].enabled === true, 'Phase 8A baseline rule ' + id + ' is disabled.');
+      });
     });
   }
 
@@ -138,11 +143,12 @@
     });
 
     references.forEach(function (reference) {
-      record('references', reference.id + ' parses, analyzes, and passes all 11 rules', function () {
+      record('references', reference.id + ' parses, analyzes, and passes all applicable rules', function () {
         var evaluation = evaluateXml(reference.xml);
         assert(evaluation.parsed.success, 'Reference did not parse.');
         assert(evaluation.analyzed.success && evaluation.analyzed.tree, 'Reference did not analyze.');
-        assert(evaluation.rules.executedRules === 11, 'Expected 11 executed rules, found ' + evaluation.rules.executedRules + '.');
+        assert(evaluation.rules.totalRules === XMLValidator.RuleEngine.getRegisteredRules().length, 'Not all registered rules were considered.');
+        assert(evaluation.rules.executedRules >= EXPECTED_RULE_IDS.length, 'Not all 11 Phase 8A baseline rules executed.');
         assert(evaluation.rules.systemIssues.length === 0, 'Reference caused a rule-system issue.');
         assert(evaluation.rules.findingsSummary.errors === 0, 'Reference produced structural errors: ' + evaluation.rules.findings.map(function (finding) { return finding.code; }).join(', '));
       });
@@ -209,7 +215,7 @@
 
     var aggregate = document.getElementById('aggregate_output');
     var aggregateLines = [
-      { text: (rulesPassed ? '11' : '0') + ' production rules verified', passed: rulesPassed },
+      { text: (rulesPassed ? '11/11' : '0/11') + ' production rules baseline verified', passed: rulesPassed },
       { text: referenceResult.filter(function (result) { return result.passed; }).length + '/17 references passed', passed: referencesPassed },
       { text: scenarioResult.filter(function (result) { return result.passed; }).length + '/23 Phase 8A scenarios passed', passed: scenariosPassed }
     ];

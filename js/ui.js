@@ -167,6 +167,33 @@ XMLValidator.UI = (function () {
     }, durationMs);
   }
 
+  function directChildren(parent, tagName) {
+    var children = [];
+    if (!parent || !parent.childNodes) return children;
+    for (var i = 0; i < parent.childNodes.length; i++) {
+      var child = parent.childNodes[i];
+      if (child.nodeType === 1 && (!tagName || child.nodeName === tagName || child.localName === tagName)) {
+        children.push(child);
+      }
+    }
+    return children;
+  }
+
+  function structuralInvoiceRequest(doc) {
+    if (!doc || !doc.documentElement || doc.documentElement.nodeName !== 'cXML') return null;
+    var requests = directChildren(doc.documentElement, 'Request');
+    if (requests.length === 0) return null;
+    var invoiceRequests = directChildren(requests[0], 'InvoiceDetailRequest');
+    return invoiceRequests.length > 0 ? invoiceRequests[0] : null;
+  }
+
+  function firstDirectText(parent, tagName) {
+    var elements = directChildren(parent, tagName);
+    if (elements.length === 0) return null;
+    var value = elements[0].textContent || '';
+    return value.trim() !== '' ? value.trim() : null;
+  }
+
   /**
    * Render Validation Success view in Validation Results tab
    * Separates XML Syntax status, cXML/Coupa Structure status, and Reference Comparison cleanly
@@ -176,7 +203,7 @@ XMLValidator.UI = (function () {
    * @param {Object} [structuralObservations]
    * @param {Object} [activeTemplate]
    */
-  function renderValidationSuccess(metadata, ruleResult, versionContext, structuralObservations, activeTemplate) {
+  function renderValidationSuccess(metadata, ruleResult, versionContext, structuralObservations, activeTemplate, scenario) {
     var container = document.getElementById('tab_pane_validation');
     if (!container) return;
 
@@ -188,8 +215,9 @@ XMLValidator.UI = (function () {
       '  <div class="syntax-success-header">',
       '    <div class="success-icon-badge" aria-hidden="true">✓</div>',
       '    <div class="success-title-group">',
-      '      <div class="success-title">XML Syntax Valid</div>',
-      '      <div class="success-description">The document is well-formed XML and was parsed successfully.</div>',
+      '      <div class="success-title">XML Syntax: Well-formed</div>',
+      '      <div class="success-question">Is the XML well-formed? <strong>Yes.</strong></div>',
+      '      <div class="success-description">Syntax is checked separately from invoice structure. A well-formed XML document can still have structural issues below.</div>',
       '    </div>',
       '  </div>',
       '</div>'
@@ -216,16 +244,19 @@ XMLValidator.UI = (function () {
       var hasSystemIssues = ruleResult.systemIssues && ruleResult.systemIssues.length > 0;
       var hasErrors = ruleResult.findingsSummary.errors > 0;
 
-      var statusTitle = 'STRUCTURAL CHECKS PASSED';
+      var statusTitle = 'NO SUPPORTED ISSUES';
       var statusBadgeClass = 'coupa-badge-unavailable';
       var statusBadgeText = ruleResult.executedRules + ' rules evaluated';
+      var structureAnswer = 'No supported structural issues detected.';
 
       if (hasSystemIssues) {
         statusTitle = 'VALIDATION INCOMPLETE';
         statusBadgeText = 'System issues';
+        structureAnswer = 'Could not be determined — validation was incomplete.';
       } else if (hasErrors) {
         statusTitle = 'ISSUES FOUND';
         statusBadgeText = ruleResult.findingsSummary.errors + ' error(s) found';
+        structureAnswer = 'No — review the findings below.';
       }
 
       // Mandatory Disclaimer Box
@@ -239,52 +270,32 @@ XMLValidator.UI = (function () {
       var versionContextHtml = '';
       if (versionContext) {
         versionContextHtml = [
-          '<div style="margin-top: 8px;">',
-          '  <span class="version-badge-label">Version Context</span>',
-          '  <div class="version-context-grid">',
+          '<details class="technical-details-box" style="margin-top:10px;">',
+          '  <summary class="technical-details-summary">Technical details</summary>',
+          '  <div class="version-context-grid" style="margin-top:8px;">',
           '    <div class="version-badge-item"><span class="version-badge-label">XML Declaration</span><span class="version-badge-val">' + escapeHtml(versionContext.xmlDeclarationVersion || 'Not declared (default 1.0)') + '</span></div>',
           '    <div class="version-badge-item"><span class="version-badge-label">cXML Root Version</span><span class="version-badge-val">' + escapeHtml(versionContext.rootVersionAttribute || 'Not specified') + '</span></div>',
           '    <div class="version-badge-item"><span class="version-badge-label">DTD Version</span><span class="version-badge-val">' + escapeHtml(versionContext.dtdVersion || 'Not referenced') + '</span></div>',
           '    <div class="version-badge-item"><span class="version-badge-label">DTD System ID</span><span class="version-badge-val" style="font-size:10px; word-break:break-all;">' + escapeHtml(versionContext.dtdSystemIdentifier || 'None') + '</span></div>',
           '  </div>',
-          '</div>'
+          '</details>'
         ].join('\n');
       }
 
       // Structural Observations (Non-error facts)
       var observationsHtml = '';
-      if (structuralObservations) {
-        function describePayloadIDs(values) {
-          if (!Array.isArray(values) || values.length === 0) return 'no payloadID observed';
-          return values.map(function (value) {
-            return value && value.trim() !== '' ? value : '(empty payloadID)';
-          }).join(', ');
-        }
-
-        var poPayloads = describePayloadIDs(structuralObservations.orderReferencePayloadIDs);
-        var contractPayloads = describePayloadIDs(structuralObservations.masterAgreementPayloadIDs);
-        var backingDesc = 'Neither PO nor Contract backing observed';
-        if (structuralObservations.backingType === 'MIXED') {
-          backingDesc = 'Both PO and Contract backing observed — PO: ' + poPayloads + '; Contract: ' + contractPayloads;
-        } else if (structuralObservations.backingType === 'PO') {
-          backingDesc = 'PO backing observed — ' + poPayloads;
-        } else if (structuralObservations.backingType === 'CONTRACT') {
-          backingDesc = 'Contract / Master Agreement backing observed — ' + contractPayloads;
-        }
-
-        var purposeDesc = structuralObservations.purpose && structuralObservations.purpose.trim() !== ''
-          ? structuralObservations.purpose
-          : 'Not declared / not observed';
-
+      if (scenario && XMLValidator.ScenarioResolver) {
+        var observationProfile = XMLValidator.ScenarioResolver.friendlyProfile(scenario);
         observationsHtml = [
           '<div style="margin-top: 12px;">',
-          '  <span class="version-badge-label">Structural Observations (Non-Error Profile)</span>',
+          '  <span class="version-badge-label">Detected Invoice Profile</span>',
           '  <div class="obs-grid">',
-          '    <div class="obs-badge-item"><span class="obs-badge-label">Document Purpose</span><span class="obs-badge-val">' + escapeHtml(purposeDesc) + '</span></div>',
-          '    <div class="obs-badge-item"><span class="obs-badge-label">Backing Observed</span><span class="obs-badge-val">' + escapeHtml(backingDesc) + '</span></div>',
-          '    <div class="obs-badge-item"><span class="obs-badge-label">Invoice Lines</span><span class="obs-badge-val">' + structuralObservations.invoiceDetailItemCount + ' standard / ' + structuralObservations.invoiceDetailServiceItemCount + ' service</span></div>',
-          '    <div class="obs-badge-item"><span class="obs-badge-label">Tax Observed</span><span class="obs-badge-val">' + (structuralObservations.taxAtLine ? 'Line Tax' : '') + (structuralObservations.taxAtLine && structuralObservations.taxAtSummary ? ' + ' : '') + (structuralObservations.taxAtSummary ? 'Summary Tax' : '') + (!structuralObservations.taxAtLine && !structuralObservations.taxAtSummary ? 'None' : '') + '</span></div>',
-          '    <div class="obs-badge-item"><span class="obs-badge-label">Shared Secret</span><span class="obs-badge-val">' + (structuralObservations.sharedSecretPresent ? 'Observed in Sender' : 'Not observed in Sender') + '</span></div>',
+          '    <div class="obs-badge-item"><span class="obs-badge-label">Document Type</span><span class="obs-badge-val">' + escapeHtml(observationProfile.documentType) + '</span></div>',
+          '    <div class="obs-badge-item"><span class="obs-badge-label">Purpose</span><span class="obs-badge-val">' + escapeHtml(observationProfile.purpose) + '</span></div>',
+          '    <div class="obs-badge-item"><span class="obs-badge-label">Body Mode</span><span class="obs-badge-val">' + escapeHtml(observationProfile.bodyMode) + '</span></div>',
+          '    <div class="obs-badge-item"><span class="obs-badge-label">Tax Profile</span><span class="obs-badge-val">' + escapeHtml(observationProfile.taxProfile) + '</span></div>',
+          '    <div class="obs-badge-item"><span class="obs-badge-label">Backing Observed</span><span class="obs-badge-val">' + escapeHtml(observationProfile.backing) + '</span></div>',
+          '    <div class="obs-badge-item"><span class="obs-badge-label">Line Profile</span><span class="obs-badge-val">' + escapeHtml(observationProfile.lineProfile) + '</span></div>',
           '  </div>',
           '</div>'
         ].join('\n');
@@ -308,22 +319,20 @@ XMLValidator.UI = (function () {
             var exp = finding.correction.expected;
             var act = finding.correction.actual;
             var sug = finding.correction.suggestion;
+            var plan = finding.correctionPlan || null;
+            var safePlan = plan && plan.available === true;
+            var correctionStatus = safePlan ? 'Safe structural correction available' : 'Manual correction required';
+            var proposedChange = safePlan ? '<div class="correction-row"><span class="correction-label">Proposed change:</span><span class="correction-val">' + escapeHtml(plan.description) + '</span></div>' : '';
+            var previewControl = safePlan ? '<div class="correction-actions"><button type="button" class="btn btn-secondary finding-btn-preview-fix" data-finding-index="' + f + '">Preview Fix</button><div class="finding-fix-preview" hidden></div></div>' : '';
 
             correctionHtml = [
               '<div class="finding-correction-box">',
+              '<div class="correction-row"><span class="correction-label">Correction:</span><span class="correction-val">' + correctionStatus + '</span></div>',
               exp ? '<div class="correction-row"><span class="correction-label">Expected:</span><span class="correction-val expected-val">' + escapeHtml(exp) + '</span></div>' : '',
               act ? '<div class="correction-row"><span class="correction-label">Actual:</span><span class="correction-val actual-val">' + escapeHtml(act) + '</span></div>' : '',
               sug ? '<div class="correction-row"><span class="correction-label">Suggestion:</span><span class="correction-val suggestion-val">' + escapeHtml(sug) + '</span></div>' : '',
-              '</div>'
-            ].join('\n');
-          }
-
-          var provenanceHtml = '';
-          if (finding.source) {
-            provenanceHtml = [
-              '<div class="finding-provenance-box">',
-              '  <span class="finding-provenance-title">Source: ' + escapeHtml(finding.source.type || 'DOCUMENTATION') + '</span>',
-              '  <span class="finding-provenance-content">' + escapeHtml(finding.source.title) + (finding.source.reference ? ' (' + escapeHtml(finding.source.reference) + ')' : '') + '</span>',
+              proposedChange,
+              previewControl,
               '</div>'
             ].join('\n');
           }
@@ -341,7 +350,6 @@ XMLValidator.UI = (function () {
             '    <div class="error-card-title">' + escapeHtml(finding.title) + '</div>' +
             '    <div class="error-card-message">' + escapeHtml(finding.message) + '</div>' +
             correctionHtml +
-            provenanceHtml +
             (viewNodeBtn ? '<div style="margin-top:4px;">' + viewNodeBtn + '</div>' : '') +
             '  </div>' +
             '</div>'
@@ -371,14 +379,15 @@ XMLValidator.UI = (function () {
 
       var passingNotesHtml = '';
       if (isSuccess) {
-        passingNotesHtml = '<div style="font-size:12px; color:var(--color-success-text); font-weight:600; padding:4px 0;">✓ All ' + ruleResult.executedRules + ' local cXML / Coupa structural rules passed without errors.</div>';
+        passingNotesHtml = '<div style="font-size:12px; color:var(--color-success-text); font-weight:600; padding:4px 0;">✓ No supported structural issues found. ' + ruleResult.executedRules + ' applicable local checks were evaluated.</div>';
       }
 
       coupaSectionHtml = [
         '<div class="coupa-validation-status-card">',
         '  <div class="coupa-validation-status-header">',
         '    <div class="coupa-status-title-group">',
-        '      <span class="coupa-status-title">cXML / Coupa Structure: ' + escapeHtml(statusTitle) + '</span>',
+        '      <span class="coupa-status-title">Invoice Structure: ' + escapeHtml(statusTitle) + '</span>',
+        '      <span class="structure-question">Is the invoice structurally correct according to supported cXML/Coupa expectations? <strong>' + escapeHtml(structureAnswer) + '</strong></span>',
         '    </div>',
         '    <span class="meta-pill">' + escapeHtml(statusBadgeText) + '</span>',
         '  </div>',
@@ -394,27 +403,11 @@ XMLValidator.UI = (function () {
       ].join('\n');
     }
 
-    // 3. Reference Comparison summary section
-    var refSectionHtml = [
-      '<div class="coupa-validation-status-card">',
-      '  <div class="coupa-validation-status-header">',
-      '    <div class="coupa-status-title-group">',
-      '      <span class="coupa-status-title">Reference Comparison</span>',
-      '    </div>',
-      '    <span class="meta-pill">' + (activeTemplate ? escapeHtml(activeTemplate.name) : 'No reference active') + '</span>',
-      '  </div>',
-      '  <div class="coupa-validation-status-body">',
-      activeTemplate ? '<p>Comparing against official Coupa template: <strong>' + escapeHtml(activeTemplate.name) + '</strong> (' + escapeHtml(activeTemplate.id) + '). Switch to the <em>Reference Comparison</em> tab for side-by-side AST diff analysis.</p>' : '<p>Select an official Coupa reference template from the catalog to run differential AST analysis against baseline samples.</p>',
-      '  </div>',
-      '</div>'
-    ].join('\n');
-
     var html = [
       '<div class="diagnostics-wrapper">',
       '  <div class="validation-results-group">',
       syntaxCardHtml,
       coupaSectionHtml,
-      refSectionHtml,
       '  </div>',
       '</div>'
     ].join('\n');
@@ -431,6 +424,34 @@ XMLValidator.UI = (function () {
           window.XMLValidator.App.selectNode(nId);
         }
       });
+    }
+    bindCorrectionControls(container, escapeHtml);
+  }
+
+  function bindCorrectionControls(container, escapeHtml) {
+    var previewBtns = container.querySelectorAll('.finding-btn-preview-fix');
+    for (var p = 0; p < previewBtns.length; p++) {
+      previewBtns[p].addEventListener('click', function () {
+        var index = Number(this.getAttribute('data-finding-index'));
+        var preview = window.XMLValidator.App.previewFix(index);
+        var target = this.parentNode.querySelector('.finding-fix-preview');
+        target.hidden = false;
+        if (!preview.success) { target.textContent = preview.reason || 'Preview is unavailable.'; return; }
+        target.innerHTML = '<div><strong>Rule ID:</strong> ' + escapeHtml(preview.ruleId) + '</div>' +
+          '<div><strong>Description:</strong> ' + escapeHtml(preview.description) + '</div>' +
+          '<div><strong>Current:</strong> ' + escapeHtml(preview.current) + '</div>' +
+          '<div><strong>Proposed:</strong> ' + escapeHtml(preview.proposed) + '</div>' +
+          '<div><strong>Exact operation:</strong> ' + escapeHtml(preview.operation) + '</div>' +
+          '<div>' + escapeHtml(preview.assurance) + '</div>' +
+          '<button type="button" class="btn btn-primary finding-btn-apply-fix" data-finding-index="' + index + '">Apply Fix</button>';
+        target.querySelector('.finding-btn-apply-fix').addEventListener('click', function () { window.XMLValidator.App.applyFix(Number(this.getAttribute('data-finding-index'))); });
+      });
+    }
+    if (window.XMLValidator.App && window.XMLValidator.App.state.lastFix) {
+      var undo = document.createElement('button');
+      undo.type = 'button'; undo.className = 'btn btn-secondary'; undo.textContent = 'Undo Last Fix';
+      undo.addEventListener('click', function () { window.XMLValidator.App.undoLastFix(); });
+      container.insertBefore(undo, container.firstChild);
     }
   }
 
@@ -489,6 +510,14 @@ XMLValidator.UI = (function () {
 
     var html = [
       '<div class="diagnostics-wrapper">',
+      '  <div class="validation-results-group">',
+      '    <section class="coupa-validation-status-card">',
+      '      <div class="coupa-validation-status-header"><div class="coupa-status-title-group"><span class="coupa-status-title">XML Syntax</span><span class="structure-question"><strong>✕ XML is not well-formed</strong></span></div></div>',
+      '    </section>',
+      '    <section class="coupa-validation-status-card">',
+      '      <div class="coupa-validation-status-header"><div class="coupa-status-title-group"><span class="coupa-status-title">Invoice Structure</span><span class="structure-question"><strong>Not evaluated</strong> — structural validation requires well-formed XML.</span></div></div>',
+      '    </section>',
+      '  </div>',
       '  <div class="error-card">',
       '    <div class="error-card-header">',
       '      <div class="error-badges-group">',
@@ -498,7 +527,7 @@ XMLValidator.UI = (function () {
       locationTags ? '      <div class="error-meta-tags">' + locationTags + '</div>' : '',
       '    </div>',
       '    <div class="error-card-body">',
-      '      <div class="error-card-title">' + escapeHtml(error.title) + '</div>',
+      '      <div class="error-card-title">XML is not well-formed.</div>',
       '      <div class="error-card-message">' + escapeHtml(error.message) + '</div>',
       snippetHtml,
       '      <div class="suggestion-box">',
@@ -919,6 +948,113 @@ XMLValidator.UI = (function () {
   }
 
   /**
+   * Render an invoice-centric document overview without exposing secret values.
+   */
+  function renderInvoiceDetails(parseResult, scenario, versionContext) {
+    var container = document.getElementById('tab_pane_details');
+    if (!container) return;
+    var escapeHtml = XMLValidator.Utils.escapeHtml;
+
+    if (!parseResult || !parseResult.success || !parseResult.document) {
+      container.innerHTML = [
+        '<div class="empty-state">',
+        '  <div class="empty-state-title">Invoice Details</div>',
+        '  <p class="empty-state-text">Validate a well-formed invoice to see its key business details.</p>',
+        '</div>'
+      ].join('\n');
+      return;
+    }
+    var doc = parseResult.document;
+    var invoiceRequest = structuralInvoiceRequest(doc);
+    var root = doc.documentElement;
+    var headers = root && root.nodeName === 'cXML' ? directChildren(root, 'Header') : [];
+    var header = headers.length > 0 ? headers[0] : null;
+    var requestHeaders = invoiceRequest ? directChildren(invoiceRequest, 'InvoiceDetailRequestHeader') : [];
+    var requestHeader = requestHeaders.length > 0 ? requestHeaders[0] : null;
+
+    function partnerIdentity(partnerName) {
+      var partners = directChildren(header, partnerName);
+      if (partners.length === 0) return null;
+      var credentials = directChildren(partners[0], 'Credential');
+      if (credentials.length === 0) return null;
+      return firstDirectText(credentials[0], 'Identity');
+    }
+
+    function displayValues(values) {
+      if (!Array.isArray(values) || values.length === 0) return 'Not found';
+      return values.map(function (value) {
+        return value && value.trim() !== '' ? value : '(empty reference)';
+      }).join(', ');
+    }
+
+    var safeScenario = scenario && scenario.purpose && scenario.bodyMode ? scenario : XMLValidator.ScenarioResolver.resolve({ xmlDocument: doc, structuralObservations: scenario || {} });
+    var friendly = XMLValidator.ScenarioResolver.friendlyProfile(safeScenario);
+    var features = safeScenario.features || [];
+    var counts = safeScenario.counts || { quantityLines: 0, serviceLines: 0, totalLines: 0 };
+    var backingDetails = safeScenario.backingDetails || { orderReferencePayloadIDs: [], masterAgreementPayloadIDs: [] };
+
+    var currencies = [];
+    var moneyElements = invoiceRequest ? invoiceRequest.getElementsByTagName('Money') : [];
+    for (var m = 0; m < moneyElements.length; m++) {
+      var currency = moneyElements[m].getAttribute('currency');
+      if (currency && currency.trim() !== '' && currencies.indexOf(currency) === -1) currencies.push(currency);
+    }
+
+    var rows = [
+      ['Document Type', friendly.documentType],
+      ['Purpose', friendly.purpose],
+      ['Body Mode', friendly.bodyMode],
+      ['Line Profile', friendly.lineProfile],
+      ['Invoice ID', requestHeader && requestHeader.getAttribute('invoiceID') ? requestHeader.getAttribute('invoiceID') : 'Not found'],
+      ['Invoice Date', requestHeader && requestHeader.getAttribute('invoiceDate') ? requestHeader.getAttribute('invoiceDate') : 'Not found'],
+      ['Currency', currencies.length > 0 ? currencies.join(', ') : 'Not found'],
+      ['Supplier Identity', partnerIdentity('From') || 'Not found'],
+      ['Buyer Identity', partnerIdentity('To') || 'Not found'],
+      ['Shared Secret', features.indexOf('SHARED_SECRET_PRESENT') !== -1 ? 'Present' : 'Not present'],
+      ['Backing Observed', friendly.backing],
+      ['Order References', displayValues(backingDetails.orderReferencePayloadIDs)],
+      ['Contract References', displayValues(backingDetails.masterAgreementPayloadIDs)],
+      ['Empty Backing References', String(backingDetails.emptyBackingReferenceCount || 0)],
+      ['Line Count', String(counts.totalLines)],
+      ['Standard Line Count', String(counts.quantityLines)],
+      ['Service Line Count', String(counts.serviceLines)],
+      ['Tax Profile', friendly.taxProfile],
+      ['Payment Terms', features.indexOf('PAYMENT_TERMS') !== -1 ? 'Present' : 'Not present'],
+      ['Extrinsics', features.indexOf('EXTRINSICS') !== -1 ? 'Present' : 'Not present'],
+      ['Requester', features.indexOf('REQUESTER') !== -1 ? 'Present' : 'Not present'],
+      ['MatchReference', features.indexOf('MATCH_REFERENCE') !== -1 ? 'Present' : 'Not present']
+    ];
+
+    var rowHtml = rows.map(function (row) {
+      return '<div class="invoice-detail-row"><span class="invoice-detail-label">' + escapeHtml(row[0]) + '</span> <span class="invoice-detail-value">' + escapeHtml(row[1]) + '</span></div>';
+    }).join('\n');
+
+    var technicalHtml = '';
+    if (versionContext) {
+      technicalHtml = [
+        '<details class="technical-details-box invoice-technical-details">',
+        '  <summary class="technical-details-summary">Technical details</summary>',
+        '  <div class="invoice-detail-row"><span class="invoice-detail-label">XML Declaration</span><span class="invoice-detail-value">' + escapeHtml(versionContext.xmlDeclarationVersion || 'Not declared') + '</span></div>',
+        '  <div class="invoice-detail-row"><span class="invoice-detail-label">cXML Root Version</span><span class="invoice-detail-value">' + escapeHtml(versionContext.rootVersionAttribute || 'Not specified') + '</span></div>',
+        '  <div class="invoice-detail-row"><span class="invoice-detail-label">DTD Version</span><span class="invoice-detail-value">' + escapeHtml(versionContext.dtdVersion || 'Not referenced') + '</span></div>',
+        '  <div class="invoice-detail-row"><span class="invoice-detail-label">DTD System ID</span><span class="invoice-detail-value invoice-detail-break">' + escapeHtml(versionContext.dtdSystemIdentifier || 'None') + '</span></div>',
+        '</details>'
+      ].join('\n');
+    }
+
+    container.innerHTML = [
+      '<div class="diagnostics-wrapper invoice-details-wrapper">',
+      '  <div class="invoice-details-heading">',
+      '    <div><h2>Invoice Details</h2><p>Key information detected directly from the validated invoice.</p></div>',
+      '    <span class="invoice-profile-badge">' + escapeHtml(friendly.badge) + '</span>',
+      '  </div>',
+      '  <div class="invoice-details-grid">' + rowHtml + '</div>',
+      technicalHtml,
+      '</div>'
+    ].join('\n');
+  }
+
+  /**
    * Render Template Comparison Tab Pane
    * @param {Object|null} activeReference { sourceType, templateId, template, fileName, rawXml, parseResult, analysisResult, error }
    * @param {Object|null} sourceAnalysis 
@@ -1336,8 +1472,8 @@ XMLValidator.UI = (function () {
         '  <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">',
         '    <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />',
         '  </svg>',
-        '  <div class="empty-state-title">XML Details</div>',
-        '  <p class="empty-state-text">Validate an XML document to view document metadata or select a node in the tree to inspect its properties.</p>',
+        '  <div class="empty-state-title">Invoice Details</div>',
+        '  <p class="empty-state-text">Validate an invoice to see its key business details.</p>',
         '</div>'
       ].join('\n');
     }
@@ -1371,6 +1507,7 @@ XMLValidator.UI = (function () {
     renderValidationSuccess: renderValidationSuccess,
     renderValidationError: renderValidationError,
     renderXmlDetails: renderXmlDetails,
+    renderInvoiceDetails: renderInvoiceDetails,
     renderComparisonView: renderComparisonView,
     resetTabsToEmptyState: resetTabsToEmptyState
   };

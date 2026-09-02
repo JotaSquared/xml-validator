@@ -9,7 +9,7 @@
     .pass { color: #087443; }
     .fail { color: #b42318; }
     li { margin: 0.5rem 0; }
-    #tab_pane_validation { display: none; }
+    #tab_pane_validation, #tab_pane_details { display: none; }
   </style>
 </head>
 <body>
@@ -19,12 +19,14 @@
     <ol id="test_results"></ol>
   </main>
   <div id="tab_pane_validation"></div>
+  <div id="tab_pane_details"></div>
 
   <script src="../js/utils.js"></script>
   <script src="../js/xmlParser.js"></script>
   <script src="../js/xmlAnalyzer.js"></script>
   <script src="../js/ruleEngine.js"></script>
   <script src="../js/validationRules.js"></script>
+  <script src="../js/scenarioResolver.js"></script>
   <script src="../js/ui.js"></script>
   <script src="phase-8a-1b3-observations.js"></script>
 </body>

@@ -41,7 +41,9 @@
 
   function order(info) {
     return '<InvoiceDetailOrder><InvoiceDetailOrderInfo>' + (info || '') + '</InvoiceDetailOrderInfo>' +
-      '<InvoiceDetailItem invoiceLineNumber="1" quantity="1"/></InvoiceDetailOrder>';
+      '<InvoiceDetailItem invoiceLineNumber="1" quantity="1">' +
+      '<UnitOfMeasure>EA</UnitOfMeasure><UnitPrice/><InvoiceDetailItemReference/>' +
+      '</InvoiceDetailItem></InvoiceDetailOrder>';
   }
 
   function xml(options) {
@@ -51,7 +53,7 @@
       header(opts.senderSecret === undefined ? 'sender-secret' : opts.senderSecret, opts.headerExtra) +
       '<Request><InvoiceDetailRequest>' +
       '<InvoiceDetailRequestHeader invoiceID="INV-OBS" invoiceDate="2026-08-31"' + purposeAttribute + '/>' +
-      (opts.orders === undefined ? order('') : opts.orders) +
+      (opts.orders === undefined ? order('') : opts.orders) + '<InvoiceDetailSummary/>' +
       '</InvoiceDetailRequest></Request>' +
       (opts.outside || '') +
       '</cXML>';
@@ -82,22 +84,30 @@
     });
   }
 
-  function renderedObservationText(observation) {
+  function renderedObservationText(source, observation) {
+    var parsed = parse(source);
+    var scenario = XMLValidator.ScenarioResolver.resolve({ xmlDocument: parsed.document, structuralObservations: observation });
     XMLValidator.UI.renderValidationSuccess({}, {
-      totalRules: 11,
-      executedRules: 11,
+      totalRules: 16,
+      executedRules: 16,
       findings: [],
       findingsSummary: { errors: 0, warnings: 0, info: 0 },
       systemIssues: []
-    }, null, observation, null);
+    }, null, observation, null, scenario);
     return document.getElementById('tab_pane_validation').textContent.replace(/\s+/g, ' ').trim();
   }
 
+  function renderedInvoiceDetailsText(source, observation) {
+    XMLValidator.UI.renderInvoiceDetails(parse(source), observation, null);
+    return document.getElementById('tab_pane_details').textContent.replace(/\s+/g, ' ').trim();
+  }
+
   test('1. SharedSecret structurally inside Header Sender Credential is observed without exposing its value', function () {
-    var observation = observe(xml({ senderSecret: 'do-not-display-this' }));
-    var rendered = renderedObservationText(observation);
+    var source = xml({ senderSecret: 'do-not-display-this' });
+    var observation = observe(source);
+    var rendered = renderedInvoiceDetailsText(source, observation);
     assert(observation.sharedSecretPresent === true, 'Sender SharedSecret was not observed.');
-    assert(rendered.indexOf('Observed in Sender') !== -1, 'UI did not report the Sender observation.');
+    assert(rendered.indexOf('Shared Secret Present') !== -1, 'Invoice Details did not report Shared Secret presence.');
     assert(rendered.indexOf('do-not-display-this') === -1, 'UI exposed the SharedSecret value.');
   });
 
@@ -107,10 +117,11 @@
   });
 
   test('3. Missing purpose is absent/not declared and is not rendered as standard', function () {
-    var observation = observe(xml({}));
-    var rendered = renderedObservationText(observation);
+    var source = xml({});
+    var observation = observe(source);
+    var rendered = renderedObservationText(source, observation);
     assert(observation.purpose === null, 'Missing purpose was not represented as null.');
-    assert(rendered.indexOf('Not declared / not observed') !== -1, 'UI did not describe missing purpose neutrally.');
+    assert(rendered.indexOf('Not declared') !== -1, 'UI did not describe missing purpose neutrally.');
   });
 
   test('4. Explicit purpose="standard" is observed as standard', function () {
@@ -134,16 +145,17 @@
   });
 
   test('8. PO and contract backing is reported as mixed/both', function () {
-    var observation = observe(xml({ orders: order(poReference('PO-1') + contractReference('CONTRACT-1')) }));
+    var source = xml({ orders: order(poReference('PO-1') + contractReference('CONTRACT-1')) });
+    var observation = observe(source);
     assert(observation.backingType === 'MIXED', 'Combined backing was not reported as mixed.');
-    assert(renderedObservationText(observation).indexOf('Both PO and Contract backing observed') !== -1, 'UI collapsed mixed backing to a single type.');
+    assert(renderedObservationText(source, observation).indexOf('Mixed PO and contract backing') !== -1, 'UI collapsed mixed backing to a single type.');
   });
 
   test('9. No recognized backing is described neutrally without a structural error', function () {
     var source = xml({ orders: order('') });
     var observation = observe(source);
     assert(observation.backingType === 'NONE', 'Expected no recognized backing state.');
-    assert(renderedObservationText(observation).indexOf('Neither PO nor Contract backing observed') !== -1, 'UI did not describe absent recognized backing neutrally.');
+    assert(renderedObservationText(source, observation).indexOf('No supported backing reference observed') !== -1, 'UI did not describe absent recognized backing neutrally.');
     assert(evaluate(source).findingsSummary.errors === 0, 'No-backing observation became a validation error.');
   });
 

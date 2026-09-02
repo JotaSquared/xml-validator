@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE cXML SYSTEM "http://xml.cxml.org/schemas/cXML/1.2.020/InvoiceDetail.dtd">
+<cXML payloadID="1240598937@SUBDOMAIN.coupahost.com" timestamp="2017-08-11T01:24:51-07:00" xml:lang="en-US">
+	 <Header>
+			<From>
+				 <Credential domain="DUNS">
+						<Identity>anything</Identity>
+				 </Credential>
+			</From>
+			<To>
+				 <Credential domain="networkID">
+						<Identity>anything</Identity>
+				 </Credential>
+			</To>
+			<Sender>
+				 <Credential domain="DUNS">
+						<Identity>anything</Identity>
+						<SharedSecret>anything</SharedSecret>
+				 </Credential>
+				 <UserAgent />
+			</Sender>
+	 </Header>
+	 <Request deploymentMode="production">
+			<InvoiceDetailRequest>
+				 <InvoiceDetailRequestHeader invoiceID="creditMemoID1" purpose="creditMemo" operation="new" invoiceDate="2017-08-11T01:24:51-07:00">
+						<InvoiceDetailHeaderIndicator />
+						<InvoiceDetailLineIndicator isAccountingInLine="yes" />
+						<DocumentReference payloadID="InvoieID1" />
+						<PaymentTerm payInNumberOfDays="30" />
+						<Extrinsic name="CustomFields">
+							 <IdReference identifier="original_invoice_date" domain="CustomField">
+									<Description xml:lang="en-US">2017-08-11T01:24:51-07:00</Description>
+							 </IdReference>
+						</Extrinsic>
+						<Extrinsic name="CustomFields">
+							 <IdReference identifier="original_invoice" domain="CustomField">
+									<Description xml:lang="en-US">InvoiceID1</Description>
+							 </IdReference>
+						</Extrinsic>
+				 </InvoiceDetailRequestHeader>
+				 <InvoiceDetailOrder>
+						<InvoiceDetailOrderInfo>
+							 <OrderReference orderDate="ORDER_DATE">
+									<DocumentReference payloadID="ORDER_NUMBER" />
+							 </OrderReference>
+							 <SupplierOrderInfo orderID="ORDER_NUMBER" />
+						</InvoiceDetailOrderInfo>
+						<InvoiceDetailItem invoiceLineNumber="1" quantity="1">
+							 <UnitOfMeasure>EA</UnitOfMeasure>
+							 <UnitPrice>
+									<Money currency="USD">100</Money>
+							 </UnitPrice>
+							 <InvoiceDetailItemReference lineNumber="1">
+									<ItemID>
+										 <SupplierPartID>partnumebr1</SupplierPartID>
+									</ItemID>
+									<Description xml:lang="en-US" />
+							 </InvoiceDetailItemReference>
+							 <SubtotalAmount>
+									<Money currency="USD">100</Money>
+							 </SubtotalAmount>
+							 <Tax>
+									<Money currency="USD">=</Money>
+									<Description xml:lang="en-US">0</Description>
+							 </Tax>
+						</InvoiceDetailItem>
+				 </InvoiceDetailOrder>
+				 <InvoiceDetailSummary>
+						<SubtotalAmount>
+							 <Money currency="USD">100</Money>
+						</SubtotalAmount>
+						<Tax>
+							 <Money currency="USD" />
+							 <Description xml:lang="en-US" />
+							 <TaxDetail purpose="tax" category="sales" percentageRate="0.0000">
+									<TaxableAmount>
+										 <Money currency="USD">100</Money>
+									</TaxableAmount>
+									<TaxAmount>
+										 <Money currency="USD">0</Money>
+									</TaxAmount>
+							 </TaxDetail>
+						</Tax>
+						<SpecialHandlingAmount>
+							 <Money currency="USD">0</Money>
+						</SpecialHandlingAmount>
+						<ShippingAmount>
+							 <Money currency="USD">0</Money>
+						</ShippingAmount>
+						<InvoiceDetailDiscount percentageRate="0.0000">
+							 <Money currency="USD">0</Money>
+						</InvoiceDetailDiscount>
+						<NetAmount>
+							 <Money currency="USD">100</Money>
+						</NetAmount>
+						<DueAmount>
+							 <Money currency="USD">100</Money>
+						</DueAmount>
+				 </InvoiceDetailSummary>
+			</InvoiceDetailRequest>
+	 </Request>
+</cXML>

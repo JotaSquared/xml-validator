@@ -248,6 +248,36 @@ window.XMLValidator = window.XMLValidator || {};
     return invoiceRequests.length > 0 ? invoiceRequests[0] : null;
   }
 
+  /**
+   * Build a stable structural path for one direct invoice line.
+   */
+  function invoiceLinePath(orderName, orderIndex, orderCount, lineName, lineIndex, lineCount) {
+    return '/cXML/Request/InvoiceDetailRequest/' + orderName +
+      (orderCount > 1 ? '[' + (orderIndex + 1) + ']' : '') + '/' + lineName +
+      (lineCount > 1 ? '[' + (lineIndex + 1) + ']' : '');
+  }
+
+  /**
+   * Append one precise finding for a required non-empty line attribute.
+   */
+  function appendRequiredAttributeFinding(findings, element, attributeName, code, elementPath, elementName) {
+    var value = element.getAttribute(attributeName);
+    if (value !== null && value.trim() !== '') return;
+    findings.push({
+      code: code,
+      title: 'Missing or Empty ' + elementName + ' Attribute',
+      message: elementName + ' must specify a non-empty ' + attributeName + ' attribute.',
+      path: elementPath + '/@' + attributeName,
+      suggestion: 'Add a non-empty ' + attributeName + ' attribute to this ' + elementName + '.',
+      correction: {
+        expected: 'Non-empty ' + attributeName + ' attribute on ' + elementName,
+        actual: value === null ? attributeName + ' attribute is missing' : attributeName + ' attribute is empty',
+        suggestion: 'Add a non-empty ' + attributeName + ' attribute to this ' + elementName + '.',
+        autoFixable: false
+      }
+    });
+  }
+
   // =========================================================================
   // PRODUCTION VALIDATION RULES (FASE 8A)
   // =========================================================================
@@ -845,7 +875,8 @@ window.XMLValidator = window.XMLValidator || {};
         if (!invReq) return [];
         var orders = getDirectElementChildren(invReq, 'InvoiceDetailOrder');
 
-        if (orders.length === 0) {
+        var headerOrders = getDirectElementChildren(invReq, 'InvoiceDetailHeaderOrder');
+        if (orders.length === 0 && headerOrders.length === 0) {
           return [{
             code: 'CXML_ORDER_001',
             title: 'Missing InvoiceDetailOrder',
@@ -941,6 +972,362 @@ window.XMLValidator = window.XMLValidator || {};
         }
 
         return findings;
+      }
+    },
+
+    // -----------------------------------------------------------------------
+    // CXML_BODY_001 — Mutually Exclusive Invoice Body Modes
+    // -----------------------------------------------------------------------
+    {
+      id: 'CXML_BODY_001',
+      name: 'Invoice Body Mode Exclusivity',
+      description: 'An InvoiceDetailRequest must not mix InvoiceDetailHeaderOrder and InvoiceDetailOrder body modes.',
+      category: 'INVOICE_BODY',
+      pack: 'CXML_CORE',
+      severity: 'error',
+      enabled: true,
+      source: {
+        type: 'CXML_SPECIFICATION',
+        title: 'cXML Reference Guide',
+        reference: 'InvoiceDetailRequest Body Modes',
+        url: 'https://xml.cxml.org/current/cXMLReferenceGuide.pdf'
+      },
+      appliesTo: function (context) {
+        return getStructuralInvoiceDetailRequest(context.xmlDocument) !== null;
+      },
+      validate: function (context) {
+        var invReq = getStructuralInvoiceDetailRequest(context.xmlDocument);
+        if (!invReq) return [];
+        var headerOrders = getDirectElementChildren(invReq, 'InvoiceDetailHeaderOrder');
+        var detailOrders = getDirectElementChildren(invReq, 'InvoiceDetailOrder');
+        if (headerOrders.length > 0 && detailOrders.length > 0) {
+          return [{
+            code: 'CXML_BODY_001',
+            title: 'Mixed Invoice Body Modes',
+            message: 'InvoiceDetailRequest must not contain both InvoiceDetailHeaderOrder and InvoiceDetailOrder elements.',
+            path: '/cXML/Request/InvoiceDetailRequest',
+            suggestion: 'Use either header invoice structures or detailed line-item structures, but not both in the same invoice.',
+            correction: {
+              expected: 'Only one invoice body mode: InvoiceDetailHeaderOrder or InvoiceDetailOrder',
+              actual: 'Both InvoiceDetailHeaderOrder and InvoiceDetailOrder are present',
+              suggestion: 'Remove the body structure that does not belong to the intended invoice mode.',
+              autoFixable: false
+            }
+          }];
+        }
+        return [];
+      }
+    },
+
+    // -----------------------------------------------------------------------
+    // CXML_BODY_002 — Required Invoice Detail Summary
+    // -----------------------------------------------------------------------
+    {
+      id: 'CXML_BODY_002',
+      name: 'InvoiceDetailSummary Presence',
+      description: 'InvoiceDetailRequest must contain a direct InvoiceDetailSummary child.',
+      category: 'INVOICE_BODY',
+      pack: 'CXML_CORE',
+      severity: 'error',
+      enabled: true,
+      source: {
+        type: 'CXML_SPECIFICATION',
+        title: 'cXML Reference Guide',
+        reference: 'InvoiceDetailRequest Structure',
+        url: 'https://xml.cxml.org/current/cXMLReferenceGuide.pdf'
+      },
+      appliesTo: function (context) {
+        return getStructuralInvoiceDetailRequest(context.xmlDocument) !== null;
+      },
+      validate: function (context) {
+        var invReq = getStructuralInvoiceDetailRequest(context.xmlDocument);
+        if (!invReq || getDirectElementChildren(invReq, 'InvoiceDetailSummary').length > 0) return [];
+        return [{
+          code: 'CXML_BODY_002',
+          title: 'Missing InvoiceDetailSummary',
+          message: 'InvoiceDetailRequest must contain an <InvoiceDetailSummary> element.',
+          path: '/cXML/Request/InvoiceDetailRequest/InvoiceDetailSummary',
+          suggestion: 'Add the invoice-level summary as a direct child of InvoiceDetailRequest.',
+          correction: {
+            expected: 'Direct InvoiceDetailSummary child in InvoiceDetailRequest',
+            actual: 'InvoiceDetailSummary is missing',
+            suggestion: 'Add InvoiceDetailSummary after the invoice body orders.',
+            autoFixable: false
+          }
+        }];
+      }
+    },
+
+    // -----------------------------------------------------------------------
+    // CXML_ITEM_001 — Required Detailed Item Attributes
+    // -----------------------------------------------------------------------
+    {
+      id: 'CXML_ITEM_001',
+      name: 'InvoiceDetailItem Required Attributes',
+      description: 'Each detailed invoice item must declare non-empty invoiceLineNumber and quantity attributes.',
+      category: 'INVOICE_LINE',
+      pack: 'CXML_CORE',
+      severity: 'error',
+      enabled: true,
+      source: {
+        type: 'CXML_SPECIFICATION',
+        title: 'cXML Reference Guide',
+        reference: 'InvoiceDetailItem Attributes',
+        url: 'https://xml.cxml.org/current/cXMLReferenceGuide.pdf'
+      },
+      appliesTo: function (context) {
+        return getStructuralInvoiceDetailRequest(context.xmlDocument) !== null;
+      },
+      validate: function (context) {
+        var invReq = getStructuralInvoiceDetailRequest(context.xmlDocument);
+        if (!invReq) return [];
+        var findings = [];
+        var orders = getDirectElementChildren(invReq, 'InvoiceDetailOrder');
+        for (var o = 0; o < orders.length; o++) {
+          var items = getDirectElementChildren(orders[o], 'InvoiceDetailItem');
+          for (var i = 0; i < items.length; i++) {
+            var itemPath = invoiceLinePath('InvoiceDetailOrder', o, orders.length, 'InvoiceDetailItem', i, items.length);
+            appendRequiredAttributeFinding(findings, items[i], 'invoiceLineNumber', 'CXML_ITEM_001', itemPath, 'InvoiceDetailItem');
+            appendRequiredAttributeFinding(findings, items[i], 'quantity', 'CXML_ITEM_001', itemPath, 'InvoiceDetailItem');
+          }
+        }
+        return findings;
+      }
+    },
+
+    // -----------------------------------------------------------------------
+    // CXML_ITEM_002 — Required Detailed Item Children
+    // -----------------------------------------------------------------------
+    {
+      id: 'CXML_ITEM_002',
+      name: 'InvoiceDetailItem Required Structure',
+      description: 'Each detailed invoice item must directly contain UnitOfMeasure, UnitPrice, and InvoiceDetailItemReference.',
+      category: 'INVOICE_LINE',
+      pack: 'CXML_CORE',
+      severity: 'error',
+      enabled: true,
+      source: {
+        type: 'CXML_SPECIFICATION',
+        title: 'cXML Reference Guide',
+        reference: 'InvoiceDetailItem Elements',
+        url: 'https://xml.cxml.org/current/cXMLReferenceGuide.pdf'
+      },
+      appliesTo: function (context) {
+        return getStructuralInvoiceDetailRequest(context.xmlDocument) !== null;
+      },
+      validate: function (context) {
+        var invReq = getStructuralInvoiceDetailRequest(context.xmlDocument);
+        if (!invReq) return [];
+        var findings = [];
+        var requiredChildren = ['UnitOfMeasure', 'UnitPrice', 'InvoiceDetailItemReference'];
+        var orders = getDirectElementChildren(invReq, 'InvoiceDetailOrder');
+        for (var o = 0; o < orders.length; o++) {
+          var items = getDirectElementChildren(orders[o], 'InvoiceDetailItem');
+          for (var i = 0; i < items.length; i++) {
+            var itemPath = invoiceLinePath('InvoiceDetailOrder', o, orders.length, 'InvoiceDetailItem', i, items.length);
+            for (var c = 0; c < requiredChildren.length; c++) {
+              var childName = requiredChildren[c];
+              if (getDirectElementChildren(items[i], childName).length === 0) {
+                findings.push({
+                  code: 'CXML_ITEM_002',
+                  title: 'Missing InvoiceDetailItem Structure',
+                  message: 'InvoiceDetailItem must contain a direct <' + childName + '> element.',
+                  path: itemPath + '/' + childName,
+                  suggestion: 'Add <' + childName + '> to this InvoiceDetailItem in the required item structure.',
+                  correction: {
+                    expected: 'Direct ' + childName + ' child in InvoiceDetailItem',
+                    actual: childName + ' is missing',
+                    suggestion: 'Add ' + childName + ' to this InvoiceDetailItem.',
+                    autoFixable: false
+                  }
+                });
+              }
+            }
+          }
+        }
+        return findings;
+      }
+    },
+
+    // -----------------------------------------------------------------------
+    // CXML_SERVICE_001 — Required Service Item Line Number
+    // -----------------------------------------------------------------------
+    {
+      id: 'CXML_SERVICE_001',
+      name: 'InvoiceDetailServiceItem Line Number',
+      description: 'Each service invoice item must declare a non-empty invoiceLineNumber attribute.',
+      category: 'INVOICE_LINE',
+      pack: 'CXML_CORE',
+      severity: 'error',
+      enabled: true,
+      source: {
+        type: 'CXML_SPECIFICATION',
+        title: 'cXML Reference Guide',
+        reference: 'InvoiceDetailServiceItem Attributes',
+        url: 'https://xml.cxml.org/current/cXMLReferenceGuide.pdf'
+      },
+      appliesTo: function (context) {
+        return getStructuralInvoiceDetailRequest(context.xmlDocument) !== null;
+      },
+      validate: function (context) {
+        var invReq = getStructuralInvoiceDetailRequest(context.xmlDocument);
+        if (!invReq) return [];
+        var findings = [];
+        var orders = getDirectElementChildren(invReq, 'InvoiceDetailOrder');
+        for (var o = 0; o < orders.length; o++) {
+          var items = getDirectElementChildren(orders[o], 'InvoiceDetailServiceItem');
+          for (var i = 0; i < items.length; i++) {
+            var itemPath = invoiceLinePath('InvoiceDetailOrder', o, orders.length, 'InvoiceDetailServiceItem', i, items.length);
+            appendRequiredAttributeFinding(findings, items[i], 'invoiceLineNumber', 'CXML_SERVICE_001', itemPath, 'InvoiceDetailServiceItem');
+          }
+        }
+        return findings;
+      }
+    },
+
+    // -----------------------------------------------------------------------
+    // CXML_SCENARIO_001 — Invoice Body Mode / Header Indicator Consistency
+    // -----------------------------------------------------------------------
+    {
+      id: 'CXML_SCENARIO_001',
+      name: 'Invoice Body Mode Indicator Consistency',
+      description: 'Header and detailed invoice bodies must agree with InvoiceDetailHeaderIndicator@isHeaderInvoice.',
+      category: 'INVOICE_SCENARIO',
+      pack: 'CXML_CORE',
+      severity: 'error',
+      enabled: true,
+      source: {
+        type: 'CXML_SPECIFICATION',
+        title: 'cXML Reference Guide',
+        reference: 'InvoiceDetailHeaderIndicator — isHeaderInvoice',
+        url: 'https://xml.cxml.org/current/cXMLReferenceGuide.pdf'
+      },
+      appliesTo: {
+        bodyMode: ['HEADER', 'DETAILED']
+      },
+      validate: function (context) {
+        var invReq = getStructuralInvoiceDetailRequest(context.xmlDocument);
+        if (!invReq || !context.scenario) return [];
+        var headers = getDirectElementChildren(invReq, 'InvoiceDetailRequestHeader');
+        var indicators = headers.length ? getDirectElementChildren(headers[0], 'InvoiceDetailHeaderIndicator') : [];
+        var declaredValue = indicators.length && indicators[0].hasAttribute('isHeaderInvoice') ? indicators[0].getAttribute('isHeaderInvoice') : null;
+        var bodyMode = context.scenario.bodyMode;
+        var invalidHeader = bodyMode === 'HEADER' && declaredValue !== 'yes';
+        var invalidDetailed = bodyMode === 'DETAILED' && declaredValue === 'yes';
+        if (!invalidHeader && !invalidDetailed) return [];
+        return [{
+          code: 'CXML_SCENARIO_001',
+          title: 'Invoice Body Mode Does Not Match Header Indicator',
+          message: invalidHeader ? 'InvoiceDetailHeaderOrder requires InvoiceDetailHeaderIndicator@isHeaderInvoice="yes".' : 'A detailed InvoiceDetailOrder must not declare isHeaderInvoice="yes".',
+          path: '/cXML/Request/InvoiceDetailRequest/InvoiceDetailRequestHeader/InvoiceDetailHeaderIndicator/@isHeaderInvoice',
+          suggestion: invalidHeader ? 'Declare isHeaderInvoice="yes" for this header invoice.' : 'Remove isHeaderInvoice="yes" for this detailed invoice.',
+          correction: {
+            expected: invalidHeader ? 'isHeaderInvoice="yes" with InvoiceDetailHeaderOrder' : 'isHeaderInvoice not specified with InvoiceDetailOrder',
+            actual: 'bodyMode=' + bodyMode + ', isHeaderInvoice=' + (declaredValue === null ? 'not specified' : JSON.stringify(declaredValue)),
+            suggestion: invalidHeader ? 'Set isHeaderInvoice to yes.' : 'Remove the isHeaderInvoice attribute.',
+            autoFixable: false
+          }
+        }];
+      }
+    },
+
+    // -----------------------------------------------------------------------
+    // CXML_SCENARIO_002 — Header Invoice Accounting Indicator Restriction
+    // -----------------------------------------------------------------------
+    {
+      id: 'CXML_SCENARIO_002',
+      name: 'Header Invoice Accounting Indicator Restriction',
+      description: 'Header invoices must not specify InvoiceDetailLineIndicator@isAccountingInLine.',
+      category: 'INVOICE_SCENARIO',
+      pack: 'CXML_CORE',
+      severity: 'error',
+      enabled: true,
+      source: {
+        type: 'CXML_SPECIFICATION',
+        title: 'cXML Reference Guide',
+        reference: 'InvoiceDetailLineIndicator — isAccountingInLine',
+        url: 'https://xml.cxml.org/current/cXMLReferenceGuide.pdf'
+      },
+      appliesTo: function (context) {
+        var invReq = getStructuralInvoiceDetailRequest(context.xmlDocument);
+        if (!invReq) return false;
+        if (context.scenario && context.scenario.bodyMode === 'HEADER') return true;
+        var headers = getDirectElementChildren(invReq, 'InvoiceDetailRequestHeader');
+        var indicators = headers.length ? getDirectElementChildren(headers[0], 'InvoiceDetailHeaderIndicator') : [];
+        return indicators.length > 0 && indicators[0].getAttribute('isHeaderInvoice') === 'yes';
+      },
+      validate: function (context) {
+        var invReq = getStructuralInvoiceDetailRequest(context.xmlDocument);
+        if (!invReq) return [];
+        var headers = getDirectElementChildren(invReq, 'InvoiceDetailRequestHeader');
+        var lineIndicators = headers.length ? getDirectElementChildren(headers[0], 'InvoiceDetailLineIndicator') : [];
+        for (var i = 0; i < lineIndicators.length; i++) {
+          if (lineIndicators[i].hasAttribute('isAccountingInLine')) {
+            return [{
+              code: 'CXML_SCENARIO_002',
+              title: 'Accounting-In-Line Indicator Is Not Allowed for Header Invoice',
+              message: 'A header invoice must not specify InvoiceDetailLineIndicator@isAccountingInLine.',
+              path: '/cXML/Request/InvoiceDetailRequest/InvoiceDetailRequestHeader/InvoiceDetailLineIndicator/@isAccountingInLine',
+              suggestion: 'Remove isAccountingInLine from the header invoice line indicator.',
+              correction: {
+                expected: 'isAccountingInLine not specified for a header invoice',
+                actual: 'isAccountingInLine=' + JSON.stringify(lineIndicators[i].getAttribute('isAccountingInLine')),
+                suggestion: 'Remove the isAccountingInLine attribute.',
+                autoFixable: false
+              }
+            }];
+          }
+        }
+        return [];
+      }
+    },
+
+    // -----------------------------------------------------------------------
+    // CXML_SCENARIO_003 — Cancel Invoice Document Reference
+    // -----------------------------------------------------------------------
+    {
+      id: 'CXML_SCENARIO_003',
+      name: 'Cancel Invoice Referenced Invoice',
+      description: 'An InvoiceDetailRequest with operation="delete" must directly reference the original invoice document.',
+      category: 'INVOICE_SCENARIO',
+      pack: 'CXML_CORE',
+      severity: 'error',
+      enabled: true,
+      source: {
+        type: 'CXML_SPECIFICATION',
+        title: 'cXML Reference Guide',
+        reference: 'InvoiceDetailRequestHeader DocumentReference',
+        url: 'https://xml.cxml.org/current/cXMLReferenceGuide.pdf'
+      },
+      appliesTo: function (context) {
+        var invReq = getStructuralInvoiceDetailRequest(context.xmlDocument);
+        if (!invReq) return false;
+        var headers = getDirectElementChildren(invReq, 'InvoiceDetailRequestHeader');
+        return headers.length > 0 && headers[0].getAttribute('operation') === 'delete';
+      },
+      validate: function (context) {
+        var invReq = getStructuralInvoiceDetailRequest(context.xmlDocument);
+        if (!invReq) return [];
+        var headers = getDirectElementChildren(invReq, 'InvoiceDetailRequestHeader');
+        if (!headers.length) return [];
+        var references = getDirectElementChildren(headers[0], 'DocumentReference');
+        for (var i = 0; i < references.length; i++) {
+          var payloadID = references[i].getAttribute('payloadID');
+          if (payloadID !== null && payloadID.trim() !== '') return [];
+        }
+        return [{
+          code: 'CXML_SCENARIO_003',
+          title: 'Cancel Invoice Is Missing Original Invoice Reference',
+          message: 'InvoiceDetailRequestHeader operation="delete" requires a direct DocumentReference with a non-empty payloadID.',
+          path: '/cXML/Request/InvoiceDetailRequest/InvoiceDetailRequestHeader/DocumentReference/@payloadID',
+          suggestion: 'Reference the payloadID of the original InvoiceDetailRequest document.',
+          correction: {
+            expected: 'Direct DocumentReference with non-empty payloadID in InvoiceDetailRequestHeader',
+            actual: references.length ? 'DocumentReference payloadID is empty' : 'DocumentReference is missing',
+            suggestion: 'Add the original invoice payloadID to a direct header DocumentReference.',
+            autoFixable: false
+          }
+        }];
       }
     }
   ];
