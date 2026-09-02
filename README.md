@@ -4,6 +4,20 @@ Offline, browser-based inspection of cXML invoices against the evidence-backed s
 
 Passing this validator does not guarantee acceptance by Coupa. Transaction validity can also depend on buyer, supplier, and Coupa-instance configuration. Compliant Invoicing is outside this project's current scope.
 
+## Release candidate baseline
+
+- Production rules: **19**
+- Approved references: **17**
+- Reference source integrity: **17/17 exact matches**
+- Synthetic end-to-end payloads: **10**
+- Safe correction operations: **3 operation types**
+- Runtime dependencies: **0**
+- Runtime network requests: **0**
+- Architecture: **HTML, CSS, and Vanilla JavaScript through `file://`**
+
+This baseline describes locally verifiable behavior only. It does not claim
+guaranteed Coupa compatibility or acceptance.
+
 ## Run the application
 
 1. Clone or copy the repository.
@@ -95,6 +109,20 @@ XML processing occurs in the browser. The application does not upload documents 
 
 The parser does not download or validate remote DTDs. Structural validation implements only the registered, evidence-backed rules; it is not a complete cXML schema validator and does not model every deployment-specific Coupa requirement.
 
+## Known scope limitations
+
+The validator intentionally excludes:
+
+- Coupa-instance transactional validation;
+- Compliant Invoicing;
+- country-specific tax compliance;
+- buyer, supplier, and invoice business-state validation;
+- remote DTD/schema validation and external-system lookups.
+
+Passing syntax and supported structural checks means only that no implemented
+local rule found an issue. It is not a guarantee of business validity or Coupa
+acceptance.
+
 ## Regression tests
 
 The browser-native suites exercise the same production parser, analyzer, rule engine, registry, observations, and embedded references used by the application:
@@ -111,4 +139,9 @@ The browser-native suites exercise the same production parser, analyzer, rule en
 - `tests/phase-10a-realistic-payloads.html` — five SIMPLE and five INTERMEDIATE fictitious end-to-end invoice payloads, including valid, invalid, safe-correction, and undo demonstrations.
 - `tests/phase-10b-uat.html` — production-interface acceptance coverage for all ten realistic payloads, three visible views, correction workflow, responsive containment, and basic accessibility.
 
-Open each HTML file directly with `file://`. Each suite prints individual results and a final aggregate. See `tests/README.md` for coverage details and expected output.
+Historical browser suites through Phase 9B can be opened directly with
+`file://`. Phase 10A and Phase 10B load separate fixture files and therefore run
+through a temporary development-only static server. This test-server
+requirement is not a production runtime requirement. Each suite prints
+individual results and a final aggregate. See `tests/README.md` for coverage
+details and expected output.

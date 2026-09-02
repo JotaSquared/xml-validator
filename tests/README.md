@@ -1,5 +1,10 @@
 # Phase 8A.1A Regression Suite
 
+The production application itself requires no server and runs directly through
+`file://`. Historical browser suites through Phase 9B also run directly from
+local files. Only Phase 10A and Phase 10B require a temporary development test
+server because they load separate XML fixture files with browser `fetch`.
+
 Open `phase-8a-regression.html` directly in Chrome or Edge. The suite uses only
 local classic scripts and browser APIs, so it remains compatible with `file://`
 and requires no Node.js, npm installation, build, or local server.
